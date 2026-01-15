@@ -3,10 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <title>Carte interactive</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      gap: 30px;
+      padding: 20px;
+    }
+
+    #carte {
+      width: 400px;
+      height: 300px;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #infos {
+      min-width: 250px;
+      border: 1px solid #ccc;
+      padding: 15px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Ma carte interactive</h1>
-  <p>Page en cours de création</p>
+
+  <div id="carte">
+    Carte (à venir)
+  </div>
+
+  <div id="infos">
+    <h3>Statistiques</h3>
+    <div id="contenu">Chargement…</div>
+  </div>
+
+<script>
+const url = https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pubhtml?gid=1101898628&single=true";
+
+fetch(url)
+  .then(res => res.text())
+  .then(text => {
+    const lignes = text.split("\n");
+    let html = "<ul>";
+
+    for (let i = 1; i < lignes.length; i++) {
+      const cols = lignes[i].split(",");
+      if (cols.length > 1) {
+        html += `<li><b>${cols[1]}</b> — ${cols[5]} | ${cols[6]} | ${cols[7]}</li>`;
+      }
+    }
+
+    html += "</ul>";
+    document.getElementById("contenu").innerHTML = html;
+  });
+</script>
+
 </body>
 </html>
-
