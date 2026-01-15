@@ -7,6 +7,7 @@
 <style>
   body {
     margin: 0;
+    font-family: Arial, sans-serif;
   }
 
   #carte {
@@ -28,10 +29,11 @@
   #bulle {
     position: absolute;
     background: white;
-    padding: 10px;
+    padding: 12px;
     border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     display: none;
+    max-width: 250px;
     z-index: 10;
   }
 </style>
@@ -40,26 +42,56 @@
 <body>
 
 <div id="carte">
+
   <!-- Point cliquable -->
-  <div class="zone" 
+  <div class="zone"
        data-nom="Thorsen"
        style="top: 40%; left: 55%;">
   </div>
 
-  <!-- Bulle -->
-  <div id="bulle"></div>
+  <div id="bulle">Chargement...</div>
+
 </div>
 
 <script>
-const zones = document.querySelectorAll(".zone");
-const bulle = document.getElementById("bulle");
+// 🔗 URL CSV de ton Google Sheet
+const SHEET_URL = https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv;
 
-zones.forEach(zone => {
+// Charger les données
+let donnees = [];
+
+fetch(SHEET_URL)
+  .then(res => res.text())
+  .then(csv => {
+    const lignes = csv.split("\n");
+    donnees = lignes.map(l => l.split(","));
+  });
+
+// Gestion du clic
+document.querySelectorAll(".zone").forEach(zone => {
   zone.addEventListener("click", () => {
-    bulle.innerHTML = "<b>Thorsen</b><br>Données à venir";
+    const nom = zone.dataset.nom;
+    const bulle = document.getElementById("bulle");
+
     bulle.style.display = "block";
-    bulle.style.top = zone.offsetTop - 60 + "px";
+    bulle.style.top = zone.offsetTop - 80 + "px";
     bulle.style.left = zone.offsetLeft + "px";
+    bulle.innerHTML = "Chargement...";
+
+    // Recherche dans le Sheet
+    for (let i = 1; i < donnees.length; i++) {
+      if (donnees[i][1] === nom) { // colonne B
+        bulle.innerHTML = `
+          <b>${nom}</b><br>
+          F : ${donnees[i][5]}<br>
+          G : ${donnees[i][6]}<br>
+          H : ${donnees[i][7]}
+        `;
+        return;
+      }
+    }
+
+    bulle.innerHTML = "Aucune donnée trouvée";
   });
 });
 </script>
