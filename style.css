@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  background: #0f2a3a;
+  font-family: serif;
+}
+
+#map-wrapper {
+  padding: 30px;
+  background: #1c3b52;
+}
+
+#map-container {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  aspect-ratio: 1 / 1;
+  margin: auto;
+  background: url("carte.png") center / contain no-repeat;
+}
+
+.marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.marker img {
+  width: 42px;
+  transition: transform 0.2s ease;
+}
+
+.marker:hover img {
+  transform: scale(1.15);
+}
+
+#tooltip {
+  position: absolute;
+  display: none;
+  max-width: 220px;
+  background: #4b2e1e;
+  color: #f5e6c8;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+  z-index: 10;
+}
