@@ -1,13 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Carte interactive Feodalis</title>
+
+<style>
+html, body{
+  margin:0;
+  padding:0;
+  background:#0f2a3a;
+  font-family: serif;
+}
+
+#map-wrapper{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  padding:20px;
+  box-sizing:border-box;
+}
+
+#map-container{
+  position:relative;
+  width:min(95vw,1100px);
+}
+
+#map-image{
+  display:block;
+  width:100%;
+  height:auto;
+}
+
+/* couche des marqueurs */
+#markers-layer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+/* blasons */
+.marker{
+  position:absolute;
+  width:120px;
+  height:120px;
+  transform:translate(-50%,-50%);
+  cursor:pointer;
+  pointer-events:auto;
+  transition:transform 0.2s ease;
+}
+
+.marker:hover{
+  transform:translate(-50%,-50%) scale(1.1);
+}
+
+.marker img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+/* bulle */
+.tooltip{
+  position:absolute;
+  background:#6b4a2d;
+  color:#f5e6c8;
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:14px;
+  display:none;
+  z-index:20;
+  transform:translate(-50%,-110%);
+  box-shadow:0 6px 16px rgba(0,0,0,0.4);
+  max-width:240px;
+  text-align:left;
+}
+
+/* petit V sous la bulle */
+.tooltip::after{
+  content:"";
+  position:absolute;
+  bottom:-8px;
+  left:50%;
+  transform:translateX(-50%);
+  border-width:8px 8px 0 8px;
+  border-style:solid;
+  border-color:#6b4a2d transparent transparent transparent;
+}
+
+.tooltip strong{
+  color:#ffd89c;
+}
+</style>
+</head>
+
+<body>
+
 <div id="map-wrapper">
   <div id="map-container">
 
-    <!-- L'image est un vrai élément IMG -->
-    <img id="map-image" src="carte.png" alt="Carte">
+    <!-- Carte -->
+    <img id="map-image" src="carte.png" alt="Carte Feodalis">
 
-    <!-- Layer des marqueurs au-dessus de l'image -->
+    <!-- Marqueurs -->
     <div id="markers-layer">
 
-      <!-- MAISONS (tes coordonnées actuelles, elles seront enfin cohérentes) -->
       <div class="marker" style="left:30%; top:30%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
       <div class="marker" style="left:40%; top:40%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
       <div class="marker" style="left:37%; top:29%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
@@ -22,12 +118,96 @@
       <div class="marker" style="left:55%; top:54%;" data-maison="Valor"><img src="Valor.png" alt="Valor"></div>
       <div class="marker" style="left:57%; top:60%;" data-maison="Lebon"><img src="Lebon.png" alt="Lebon"></div>
       <div class="marker" style="left:59%; top:63%;" data-maison="Taurmont"><img src="Taurmont.png" alt="Taurmont"></div>
-      <div class="marker" style="left:41%; top:60%;" data-maison="Astraghort"><img src="Astragh-ort.png" alt="Astraghort"></div>
+      <div class="marker" style="left:41%; top:60%;" data-maison="Astraghort"><img src="Astraghort.png" alt="Astraghort"></div>
       <div class="marker" style="left:38%; top:53%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
-      
-      <!-- ta bulle si elle est dans la carte -->
-      <div id="tooltip" class="tooltip"></div>
 
+      <div id="tooltip" class="tooltip"></div>
     </div>
+
   </div>
 </div>
+
+<script>
+/* Lien vers ton Google Sheet en TSV */
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
+
+let sheetData = [];
+
+/* Normalisation pour comparer proprement */
+function normalize(str){
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]/g,"");
+}
+
+/* Chargement du sheet */
+fetch(SHEET_URL)
+  .then(r => r.text())
+  .then(text => {
+    sheetData = text.split("\n").map(l => l.split("\t"));
+  });
+
+const tooltip = document.getElementById("tooltip");
+let currentMarker = null;
+
+document.querySelectorAll(".marker").forEach(marker => {
+  marker.addEventListener("click", e => {
+    e.stopPropagation();
+
+    if(currentMarker === marker){
+      tooltip.style.display = "none";
+      currentMarker = null;
+      return;
+    }
+
+    currentMarker = marker;
+
+    const maison = marker.dataset.maison;
+    const maisonNorm = normalize(maison);
+
+    let rowFound = null;
+    for(const row of sheetData){
+      if(row[1] && normalize(row[1]) === maisonNorm){
+        rowFound = row;
+        break;
+      }
+    }
+
+    if(rowFound){
+      tooltip.innerHTML = `
+        <strong>${rowFound[1]}</strong><br>
+        Tech. militaire : ${rowFound[5]}<br>
+        Économie : ${rowFound[6]}<br>
+        Fortification : ${rowFound[7]}
+      `;
+    }else{
+      tooltip.innerHTML = `
+        <strong>${maison}</strong><br>
+        Données absentes
+      `;
+    }
+
+    /* Position proche du blason */
+    const rect = marker.getBoundingClientRect();
+    const mapRect = document.getElementById("map-container").getBoundingClientRect();
+
+    const x = rect.left - mapRect.left + rect.width/2;
+    const y = rect.top - mapRect.top;
+
+    tooltip.style.left = x + "px";
+    tooltip.style.top  = y + "px";
+    tooltip.style.display = "block";
+  });
+});
+
+/* clic ailleurs = fermer la bulle */
+document.body.addEventListener("click", () => {
+  tooltip.style.display = "none";
+  currentMarker = null;
+});
+</script>
+
+</body>
+</html>
