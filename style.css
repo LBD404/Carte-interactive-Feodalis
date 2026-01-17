@@ -1,47 +1,42 @@
-body {
-  margin: 0;
-  background: #0f2a3a;
-  font-family: serif;
-}
-
-#map-wrapper {
-  padding: 30px;
-  background: #1c3b52;
-}
-
-#map-container {
-  position: relative;
+/* Conteneur général (comme tu veux) */
+#map-wrapper{
   width: 100%;
-  max-width: 1400px;
-  aspect-ratio: 1 / 1;
-  margin: auto;
-  background: url("carte.png") center / contain no-repeat;
+  display: flex;
+  justify-content: center;
 }
 
-.marker {
+/* Le conteneur devient la référence de position */
+#map-container{
+  position: relative;
+  width: min(95vw, 1100px);   /* adapte si besoin */
+}
+
+/* L'image prend toute la largeur du conteneur */
+#map-image{
+  display: block;
+  width: 100%;
+  height: auto;              /* garde le ratio */
+}
+
+/* Calque des marqueurs exactement sur l'image */
+#markers-layer{
   position: absolute;
-  transform: translate(-50%, -50%);
+  inset: 0;                  /* top/right/bottom/left:0 */
+  pointer-events: none;      /* on réactive sur les marqueurs */
+}
+
+/* Marqueurs */
+.marker{
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);  /* centre l’icône sur (left,top) */
   cursor: pointer;
+  pointer-events: auto;              /* cliquable */
 }
 
-.marker img {
-  width: 42px;
-  transition: transform 0.2s ease;
-}
-
-.marker:hover img {
-  transform: scale(1.15);
-}
-
-#tooltip {
-  position: absolute;
-  display: none;
-  max-width: 220px;
-  background: #4b2e1e;
-  color: #f5e6c8;
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-  z-index: 10;
+.marker img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
