@@ -28,9 +28,9 @@
 /* Marqueurs */
 .marker{
   position: absolute;
-  width: 65px;
-  height: 65px;
-  transform: translate(-50%, -50%);  /* centre l’icône sur (left,top) */
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -20%);  /* centre l’icône sur (left,top) */
   cursor: pointer;
   pointer-events: auto;              /* cliquable */
 }
