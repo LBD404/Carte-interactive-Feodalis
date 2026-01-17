@@ -2,97 +2,188 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Carte interactive</title>
+<title>Carte Feodalis</title>
 
 <style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-  }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
 
-  #carte {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    background: url("carte.png") center / cover no-repeat;
-  }
+body {
+  background: #cfe7f2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
-  .zone {
-    position: absolute;
-    width: 24px;
-    height: 24px;
-    background: red;
-    border-radius: 50%;
-    cursor: pointer;
-  }
+#frame {
+  width: 100vw;
+  height: 100vh;
+  padding: 30px;
+  box-sizing: border-box;
+}
 
-  #bulle {
-    position: absolute;
-    background: white;
-    padding: 12px;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    display: none;
-    max-width: 250px;
-    z-index: 10;
-  }
+#map-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background: #cfe7f2;
+}
+
+#map-container {
+  position: absolute;
+  width: 1200px;
+  height: 1200px;
+  background: url("carte.png") no-repeat center;
+  background-size: contain;
+  transform-origin: center;
+  cursor: grab;
+}
+
+/* === BLASONS === */
+.marker {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.marker:hover {
+  transform: scale(1.15);
+  filter: drop-shadow(0 0 6px rgba(255,220,150,0.8));
+}
+
+.marker img {
+  width: 100%;
+  height: 100%;
+}
+
+/* === BULLE === */
+.tooltip {
+  position: absolute;
+  background: #5b3a1e;
+  color: #f5e6c8;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: serif;
+  font-size: 14px;
+  border: 1px solid #caa76a;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+  transform: translate(-50%, -190%);
+  display: none;
+  white-space: nowrap;
+}
+
+.tooltip strong {
+  color: #f0d28a;
+}
 </style>
 </head>
 
 <body>
 
-<div id="carte">
+<div id="frame">
+<div id="map-wrapper">
+<div id="map-container">
 
-  <!-- Point cliquable -->
-  <div class="zone"
-       data-nom="Thorsen"
-       style="top: 40%; left: 55%;">
-  </div>
+<!-- MARQUEURS -->
+<div class="marker" style="left:34%; top:26%;" data-maison="thorsen"><img src="thorsen.png"></div>
+<div class="marker" style="left:28%; top:33%;" data-maison="malty"><img src="malty.png"></div>
+<div class="marker" style="left:21%; top:27%;" data-maison="austren"><img src="austren.png"></div>
+<div class="marker" style="left:19%; top:20%;" data-maison="lombard"><img src="lombard.png"></div>
+<div class="marker" style="left:18%; top:40%;" data-maison="givre bois"><img src="givre bois.png"></div>
+<div class="marker" style="left:17%; top:48%;" data-maison="montcristal"><img src="montcristal.png"></div>
 
-  <div id="bulle"></div>
+<div class="marker" style="left:26%; top:52%;" data-maison="léda"><img src="léda.png"></div>
+<div class="marker" style="left:32%; top:36%;" data-maison="loupargent"><img src="loupargent.png"></div>
+<div class="marker" style="left:29%; top:43%;" data-maison="bellini"><img src="bellini.png"></div>
+<div class="marker" style="left:40%; top:18%;" data-maison="contrevent"><img src="contrevent.png"></div>
+<div class="marker" style="left:43%; top:27%;" data-maison="clawthorne"><img src="clawthorne.png"></div>
 
+<div class="marker" style="left:46%; top:40%;" data-maison="messny"><img src="messny.png"></div>
+<div class="marker" style="left:44%; top:52%;" data-maison="valor"><img src="valor.png"></div>
+<div class="marker" style="left:48%; top:60%;" data-maison="Lebon"><img src="Lebon.png"></div>
+<div class="marker" style="left:45%; top:67%;" data-maison="taurmont"><img src="taurmont.png"></div>
+
+<div class="marker" style="left:24%; top:72%;" data-maison="astragh'ort"><img src="astragh'ort.png"></div>
+<div class="marker" style="left:27%; top:60%;" data-maison="feublanc"><img src="feublanc.png"></div>
+
+<div id="tooltip" class="tooltip"></div>
+
+</div>
+</div>
 </div>
 
 <script>
-// 🔗 Lien TSV public de ton Google Sheet
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
+const SHEET_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
-// Charger les données
-let donnees = [];
+let data = [];
+fetch(SHEET_URL).then(r => r.text()).then(t =>
+  data = t.split("\n").map(l => l.split("\t"))
+);
 
-fetch(SHEET_URL)
-  .then(res => res.text())
-  .then(tsv => {
-    const lignes = tsv.split("\n");
-    donnees = lignes.map(l => l.split("\t"));
-  });
+const tooltip = document.getElementById("tooltip");
+let activeMarker = null;
 
-// Gestion du clic
-document.querySelectorAll(".zone").forEach(zone => {
-  zone.addEventListener("click", () => {
-    const nom = zone.dataset.nom;
-    const bulle = document.getElementById("bulle");
+document.querySelectorAll(".marker").forEach(marker => {
+  marker.addEventListener("click", e => {
+    e.stopPropagation();
 
-    bulle.style.display = "block";
-    bulle.style.top = zone.offsetTop - 80 + "px";
-    bulle.style.left = zone.offsetLeft + "px";
-    bulle.innerHTML = "Chargement...";
-
-    // Recherche dans le Sheet
-    for (let i = 1; i < donnees.length; i++) {
-      if (donnees[i][1] === nom) { // colonne B
-        bulle.innerHTML = `
-          <b>${nom}</b><br>
-          F : ${donnees[i][5]}<br>
-          G : ${donnees[i][6]}<br>
-          H : ${donnees[i][7]}
-        `;
-        return;
-      }
+    if (activeMarker === marker) {
+      tooltip.style.display = "none";
+      activeMarker = null;
+      return;
     }
 
-    bulle.innerHTML = "Aucune donnée trouvée";
+    activeMarker = marker;
+    const maison = marker.dataset.maison;
+    const row = data.find(r => r[0] === maison);
+
+    tooltip.innerHTML = row
+      ? `<strong>${maison}</strong><br>${row[5]}<br>${row[6]}<br>${row[7]}`
+      : `<strong>${maison}</strong><br>Données absentes`;
+
+    tooltip.style.left = marker.style.left;
+    tooltip.style.top = marker.style.top;
+    tooltip.style.display = "block";
   });
+});
+
+document.body.addEventListener("click", () => {
+  tooltip.style.display = "none";
+  activeMarker = null;
+});
+
+/* === ZOOM + PAN === */
+const map = document.getElementById("map-container");
+let scale = 1, x = 0, y = 0;
+let isDragging = false, startX, startY;
+
+map.addEventListener("mousedown", e => {
+  isDragging = true;
+  startX = e.clientX - x;
+  startY = e.clientY - y;
+});
+
+window.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+  x = e.clientX - startX;
+  y = e.clientY - startY;
+  map.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+});
+
+window.addEventListener("mouseup", () => isDragging = false);
+
+map.addEventListener("wheel", e => {
+  e.preventDefault();
+  scale += e.deltaY * -0.001;
+  scale = Math.min(Math.max(0.6, scale), 2.5);
+  map.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
 });
 </script>
 
