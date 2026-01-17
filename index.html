@@ -14,7 +14,7 @@
     position: relative;
     width: 100vw;
     height: 100vh;
-    background: url("carte.jpg") center / cover no-repeat;
+    background: url("carte.png") center / cover no-repeat;
   }
 
   .zone {
@@ -49,22 +49,22 @@
        style="top: 40%; left: 55%;">
   </div>
 
-  <div id="bulle">Chargement...</div>
+  <div id="bulle"></div>
 
 </div>
 
 <script>
-// 🔗 URL CSV de ton Google Sheet
-const SHEET_URL = https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv;
+// 🔗 Lien TSV public de ton Google Sheet
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
 // Charger les données
 let donnees = [];
 
 fetch(SHEET_URL)
   .then(res => res.text())
-  .then(csv => {
-    const lignes = csv.split("\n");
-    donnees = lignes.map(l => l.split(","));
+  .then(tsv => {
+    const lignes = tsv.split("\n");
+    donnees = lignes.map(l => l.split("\t"));
   });
 
 // Gestion du clic
