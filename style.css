@@ -28,8 +28,8 @@
 /* Marqueurs */
 .marker{
   position: absolute;
-  width: 90px;
-  height: 90px;
+  width: 65px;
+  height: 65px;
   transform: translate(-50%, -50%);  /* centre l’icône sur (left,top) */
   cursor: pointer;
   pointer-events: auto;              /* cliquable */
