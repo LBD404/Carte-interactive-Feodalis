@@ -1,25 +1,47 @@
-.tooltip {
-  position: absolute;
-  background: #6b4a2d; /* marron Feodalis */
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 14px;
-  max-width: 220px;
-  pointer-events: none;
-  transform: translate(-50%, -100%);
-  box-shadow: 0 6px 16px rgba(0,0,0,0.35);
-  z-index: 10;
+body {
+  margin: 0;
+  background: #0f2a3a;
+  font-family: serif;
 }
 
-/* petit V */
-.tooltip::after {
-  content: "";
+#map-wrapper {
+  padding: 30px;
+  background: #1c3b52;
+}
+
+#map-container {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  aspect-ratio: 1 / 1;
+  margin: auto;
+  background: url("carte.png") center / contain no-repeat;
+}
+
+.marker {
   position: absolute;
-  bottom: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 8px 8px 0 8px;
-  border-style: solid;
-  border-color: #6b4a2d transparent transparent transparent;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.marker img {
+  width: 42px;
+  transition: transform 0.2s ease;
+}
+
+.marker:hover img {
+  transform: scale(1.15);
+}
+
+#tooltip {
+  position: absolute;
+  display: none;
+  max-width: 220px;
+  background: #4b2e1e;
+  color: #f5e6c8;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+  z-index: 10;
 }
