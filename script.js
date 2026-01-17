@@ -24,9 +24,14 @@ document.querySelectorAll(".marker").forEach(marker => {
     const maison = marker.dataset.maison;
     const row = data.find(r => r[1]?.trim() === maison);
 
-    tooltip.innerHTML = row
-      ? `<strong>${row[1]}</strong><br>${row[5]}<br>${row[6]}<br>${row[7]}`
-      : `<strong>${maison}</strong><br>Données absentes`;
+   tooltip.innerHTML = `
+   <strong>${row[1]}</strong><br>
+   Tech. militaire : ${row[5]}<br>
+   Économie : ${row[6]}<br>
+   Fortification : ${row[7]}
+   `;
+
+
 
     const rect = marker.getBoundingClientRect();
     const mapRect = document.getElementById("map-container").getBoundingClientRect();
