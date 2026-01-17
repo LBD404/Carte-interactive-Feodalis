@@ -30,7 +30,6 @@ document.querySelectorAll(".marker").forEach(marker => {
 
     const rect = marker.getBoundingClientRect();
     const mapRect = document.getElementById("map-container").getBoundingClientRect();
-
     tooltip.style.left = (rect.left - mapRect.left + 20) + "px";
     tooltip.style.top = (rect.top - mapRect.top - 10) + "px";
     tooltip.style.display = "block";
