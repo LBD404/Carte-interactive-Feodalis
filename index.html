@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Carte interactive Feodalis</title>
 <link rel="icon" type="image/png" href="favicon.png">
 
@@ -69,16 +70,19 @@ html, body{
   border-radius:10px;
   font-size:14px;
   display:none;
-  z-index:20;
-  transform:translate(-50%,-90%); /* au-dessus par défaut */
+  z-index:999;
+  pointer-events:auto;       /* capte les clics */
+  transform:translate(-50%,-90%);
   box-shadow:0 6px 16px rgba(0,0,0,0.4);
   max-width:300px;
   text-align:left;
 }
 
+.tooltip *{ pointer-events:auto; }
+
 .tooltip strong{ color:#ffd89c; }
 
-/* petit V (par défaut en bas) */
+/* petit V */
 .tooltip::after{
   content:"";
   position:absolute;
@@ -106,9 +110,7 @@ html, body{
   margin-bottom:6px;
 }
 
-.tip-title{
-  font-weight:700;
-}
+.tip-title{ font-weight:700; }
 
 .tip-sub{
   font-size:12px;
@@ -130,9 +132,7 @@ html, body{
   font-size:13px;
 }
 
-.k{
-  opacity:0.95;
-}
+.k{ opacity:0.95; }
 
 .v{
   text-align:right;
@@ -183,7 +183,7 @@ html, body{
 
     <div id="markers-layer">
 
-      <!-- COORDONNÉES (modèle) -->
+      <!-- COORDONNÉES (inchangées) -->
       <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
       <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
       <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
@@ -205,7 +205,6 @@ html, body{
       <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
 
       <div id="tooltip" class="tooltip"></div>
-
     </div>
   </div>
 </div>
@@ -214,15 +213,11 @@ html, body{
 /*
   Colonnes (index 0-based) :
   A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12, N=13
-  - Nom maison : colonne B (1)
-  - Rang : colonne D (3)
-  - Seigneur lige : colonne E (4)
-  - Stats principales : G,H,I (6,7,8)
-  - Stats secondaires : J,K,L,M,N (9..13)
 */
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
 let sheetData = [];
+let dataReady = false;
 
 function normalize(str){
   return (str || "")
@@ -236,12 +231,12 @@ fetch(SHEET_URL)
   .then(r => r.text())
   .then(text => {
     sheetData = text.split("\n").map(l => l.split("\t"));
-  });
+    dataReady = true;
+  })
+  .catch(() => { dataReady = false; });
 
 const tooltip = document.getElementById("tooltip");
 const map = document.getElementById("map-container");
-// Empêche la tooltip de déclencher le "clic ailleurs = fermer"
-tooltip.addEventListener("click", (e) => e.stopPropagation());
 
 let currentMarker = null;
 let currentRow = null;
@@ -250,21 +245,23 @@ let currentPage = 1;
 function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
 function buildTooltip(row, page){
+  if(!dataReady){
+    return `<div class="tip-title"><strong>Chargement des données…</strong></div>`;
+  }
   if(!row){
     return `<div class="tip-title"><strong>Données absentes</strong></div>`;
   }
 
-  const maison = row[1] || "";
-  const rang = row[3] || "";
-  const lige = row[4] || "";
+  const royaume = row[0] || "";  // ✅ Colonne A
+  const maison  = row[1] || "";
+  const rang    = row[3] || "";
+  const lige    = row[4] || "";
 
-  // principales G,H,I
   const g = row[6] ?? "";
   const h = row[7] ?? "";
   const i = row[8] ?? "";
 
-  // secondaires J..N
-  const j = row[9] ?? "";
+  const j = row[9]  ?? "";
   const k = row[10] ?? "";
   const l = row[11] ?? "";
   const m = row[12] ?? "";
@@ -274,7 +271,11 @@ function buildTooltip(row, page){
     <div class="tip-header">
       <div>
         <div class="tip-title"><strong>${maison}</strong></div>
-        <div class="tip-sub">Rang : ${rang || "—"}<br>Seigneur lige : ${lige || "—"}</div>
+        <div class="tip-sub">
+          Royaume : ${royaume || "—"}<br>
+          Rang : ${rang || "—"}<br>
+          Seigneur lige : ${lige || "—"}
+        </div>
       </div>
       <div class="tip-page">Page ${page}/2</div>
     </div>
@@ -289,7 +290,6 @@ function buildTooltip(row, page){
     </div>
   `;
 
-  // Tu peux renommer ces libellés si tu as des noms précis pour J..N
   const page2 = `
     <div class="tip-grid">
       <div class="k">Stat J</div><div class="v">${j || "—"}</div>
@@ -302,9 +302,9 @@ function buildTooltip(row, page){
 
   const nav = `
     <div class="tip-nav">
-      <button class="tip-btn" id="tip-prev" ${page===1 ? "disabled" : ""}>◀</button>
-      <div class="tip-page">${page===1 ? "Stats principales" : "Stats secondaires"}</div>
-      <button class="tip-btn" id="tip-next" ${page===2 ? "disabled" : ""}>▶</button>
+      <button class="tip-btn" data-action="prev" ${page===1 ? "disabled" : ""}>◀</button>
+      <div class="tip-page">${page===1 ? "Stats principales" : "Stats de champion"}</div>
+      <button class="tip-btn" data-action="next" ${page===2 ? "disabled" : ""}>▶</button>
     </div>
   `;
 
@@ -312,102 +312,108 @@ function buildTooltip(row, page){
 }
 
 function placeTooltipNearMarker(marker){
-  // Affiche d'abord pour mesurer correctement
   tooltip.style.display = "block";
 
   const markerRect = marker.getBoundingClientRect();
   const mapRect = map.getBoundingClientRect();
   const tipRect = tooltip.getBoundingClientRect();
 
-  // Position "idéale" : au-dessus du marqueur
   let x = (markerRect.left - mapRect.left) + markerRect.width/2;
-  let y = (markerRect.top - mapRect.top);
+  let yTop = (markerRect.top - mapRect.top);
 
-  // Clamp horizontale
   const padding = 8;
   x = clamp(x, tipRect.width/2 + padding, mapRect.width - tipRect.width/2 - padding);
 
-  // Si dépasse en haut => place en dessous
-  const wouldGoAbove = (y - tipRect.height - 18) < 0;
+  const wouldGoAbove = (yTop - tipRect.height - 18) < 0;
+
   if(wouldGoAbove){
     tooltip.classList.add("below");
     tooltip.style.transform = "translate(-50%, 20px)";
     tooltip.style.left = x + "px";
-    tooltip.style.top  = (y + markerRect.height/2) + "px";
+    tooltip.style.top  = (yTop + markerRect.height/2) + "px";
   } else {
     tooltip.classList.remove("below");
     tooltip.style.transform = "translate(-50%,-90%)";
     tooltip.style.left = x + "px";
-    tooltip.style.top  = y + "px";
+    tooltip.style.top  = yTop + "px";
   }
 }
 
-function wireTooltipButtons(){
-  const prev = document.getElementById("tip-prev");
-  const next = document.getElementById("tip-next");
+function openForMarker(marker){
+  currentMarker = marker;
+  currentPage = 1;
 
-  if(prev) prev.onclick = (e) => {
-    e.stopPropagation();
-    if(currentRow && currentPage > 1){
-      currentPage--;
-      tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-      wireTooltipButtons();
-      placeTooltipNearMarker(currentMarker);
-    }
-  };
+  const maison = marker.dataset.maison || "";
+  const key = normalize(maison);
 
-  if(next) next.onclick = (e) => {
-    e.stopPropagation();
-    if(currentRow && currentPage < 2){
-      currentPage++;
-      tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-      wireTooltipButtons();
-      placeTooltipNearMarker(currentMarker);
-    }
-  };
-}
-
-document.querySelectorAll(".marker").forEach(marker => {
-  marker.addEventListener("click", e => {
-    e.stopPropagation();
-
-    // toggle (clic à nouveau = fermer)
-    if(currentMarker === marker){
-      tooltip.style.display = "none";
-      currentMarker = null;
-      currentRow = null;
-      currentPage = 1;
-      return;
-    }
-
-    currentMarker = marker;
-    currentPage = 1;
-
-    const maison = marker.dataset.maison;
-    const key = normalize(maison);
-
-    // recherche par colonne B (1)
-    currentRow = null;
+  currentRow = null;
+  if(dataReady){
     for(const row of sheetData){
       if(row[1] && normalize(row[1]) === key){
         currentRow = row;
         break;
       }
     }
+  }
 
-    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-    wireTooltipButtons();
-    placeTooltipNearMarker(marker);
-  });
-});
+  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+  placeTooltipNearMarker(marker);
+}
 
-// clic ailleurs = fermer
-document.body.addEventListener("click", () => {
+function closeTooltip(){
   tooltip.style.display = "none";
   currentMarker = null;
   currentRow = null;
   currentPage = 1;
+}
+
+/* navigation tooltip (event delegation) */
+tooltip.addEventListener("click", (e) => {
+  e.stopPropagation();
+
+  const btn = e.target.closest("[data-action]");
+  if(!btn) return;
+
+  const action = btn.getAttribute("data-action");
+  if(action === "prev" && currentPage > 1){
+    currentPage--;
+  } else if(action === "next" && currentPage < 2){
+    currentPage++;
+  } else {
+    return;
+  }
+
+  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+  placeTooltipNearMarker(currentMarker);
 });
+
+/* Click markers */
+document.querySelectorAll(".marker").forEach(marker => {
+  marker.addEventListener("click", (e) => {
+    e.stopPropagation();
+
+    if(currentMarker === marker){
+      closeTooltip();
+      return;
+    }
+    openForMarker(marker);
+  });
+});
+
+/* Click dehors = fermer */
+document.addEventListener("click", () => closeTooltip());
+
+/* Reposition si resize/scroll */
+window.addEventListener("resize", () => {
+  if(currentMarker && tooltip.style.display === "block"){
+    placeTooltipNearMarker(currentMarker);
+  }
+});
+window.addEventListener("scroll", () => {
+  if(currentMarker && tooltip.style.display === "block"){
+    placeTooltipNearMarker(currentMarker);
+  }
+}, { passive:true });
 </script>
 
 </body>
