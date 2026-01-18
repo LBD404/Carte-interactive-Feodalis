@@ -42,8 +42,8 @@ html, body{
 /* ===== BLASONS ===== */
 .marker{
   position:absolute;
-  width:60px;
-  height:60px;
+  width:90px;
+  height:90px;
   transform:translate(-50%,-50%);
   cursor:pointer;
   pointer-events:auto;
@@ -154,11 +154,12 @@ html, body{
   border:1px solid rgba(255,255,255,0.18);
   color:#f5e6c8;
   border-radius:8px;
-  padding:6px 10px;
+  padding:4px 7px;
   cursor:pointer;
   font-family:inherit;
-  font-size:13px;
+  font-size:10px;
   user-select:none;
+  line-height:1;
 }
 
 .tip-btn:disabled{
@@ -239,6 +240,9 @@ fetch(SHEET_URL)
 
 const tooltip = document.getElementById("tooltip");
 const map = document.getElementById("map-container");
+// Empêche la tooltip de déclencher le "clic ailleurs = fermer"
+tooltip.addEventListener("click", (e) => e.stopPropagation());
+
 let currentMarker = null;
 let currentRow = null;
 let currentPage = 1;
