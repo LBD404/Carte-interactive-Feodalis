@@ -40,11 +40,15 @@ html, body{
   pointer-events:none;
 }
 
-/* ===== BLASONS ===== */
+/* ===== BLASONS (RESPONSIVE) =====
+   - clamp(min, ideal, max)
+   - sur PC : peut monter jusqu'à 90px
+   - sur mobile : descend facilement vers 36-50px selon largeur
+*/
 .marker{
   position:absolute;
-  width:90px;
-  height:90px;
+  width:clamp(36px, 6vw, 90px);
+  height:clamp(36px, 6vw, 90px);
   transform:translate(-50%,-50%);
   cursor:pointer;
   pointer-events:auto;
@@ -71,15 +75,16 @@ html, body{
   font-size:14px;
   display:none;
   z-index:999;
-  pointer-events:auto;       /* capte les clics */
-  transform:translate(-50%,-90%);
+  pointer-events:auto;
   box-shadow:0 6px 16px rgba(0,0,0,0.4);
-  max-width:300px;
+
+  /* ✅ responsive mobile */
+  width:max-content;
+  max-width:min(320px, 92vw); /* ne dépasse pas l'écran */
   text-align:left;
 }
 
 .tooltip *{ pointer-events:auto; }
-
 .tooltip strong{ color:#ffd89c; }
 
 /* petit V */
@@ -105,7 +110,7 @@ html, body{
 .tip-header{
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  align-items:flex-start;
   gap:10px;
   margin-bottom:6px;
 }
@@ -171,6 +176,27 @@ html, body{
   font-size:12px;
   opacity:0.9;
 }
+
+/* ✅ Ajustements mobiles */
+@media (max-width: 640px){
+  #map-wrapper{ padding:10px; }
+
+  .tooltip{
+    font-size:13px;
+    padding:9px 10px;
+    border-radius:12px;
+    max-width:92vw;
+  }
+
+  .tip-grid{
+    font-size:12px;
+    gap:4px 8px;
+  }
+
+  .tip-sub{ font-size:11px; }
+
+  .tip-btn{ font-size:10px; padding:5px 8px; }
+}
 </style>
 </head>
 
@@ -210,10 +236,6 @@ html, body{
 </div>
 
 <script>
-/*
-  Colonnes (index 0-based) :
-  A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12, N=13
-*/
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
 let sheetData = [];
@@ -242,6 +264,9 @@ let currentMarker = null;
 let currentRow = null;
 let currentPage = 1;
 
+let anchor = { x: 0, y: 0 };
+let layoutMode = "above"; // stable, basé sur hauteur max (page2)
+
 function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
 function buildTooltip(row, page){
@@ -252,7 +277,7 @@ function buildTooltip(row, page){
     return `<div class="tip-title"><strong>Données absentes</strong></div>`;
   }
 
-  const royaume = row[0] || "";  // ✅ Colonne A
+  const royaume = row[0] || "";
   const maison  = row[1] || "";
   const rang    = row[3] || "";
   const lige    = row[4] || "";
@@ -292,11 +317,11 @@ function buildTooltip(row, page){
 
   const page2 = `
     <div class="tip-grid">
-      <div class="k">Stat J</div><div class="v">${j || "—"}</div>
-      <div class="k">Stat K</div><div class="v">${k || "—"}</div>
-      <div class="k">Stat L</div><div class="v">${l || "—"}</div>
-      <div class="k">Stat M</div><div class="v">${m || "—"}</div>
-      <div class="k">Stat N</div><div class="v">${n || "—"}</div>
+      <div class="k">Armes tranchantes</div><div class="v">${j || "—"}</div>
+      <div class="k">Armes contondantes</div><div class="v">${k || "—"}</div>
+      <div class="k">Armes d'hast</div><div class="v">${l || "—"}</div>
+      <div class="k">Arme de projection</div><div class="v">${m || "—"}</div>
+      <div class="k">Sens du combat</div><div class="v">${n || "—"}</div>
     </div>
   `;
 
@@ -311,32 +336,58 @@ function buildTooltip(row, page){
   return header + (page===1 ? page1 : page2) + nav;
 }
 
-function placeTooltipNearMarker(marker){
+/* Calcule ancre + décide above/below avec la hauteur max (page2) */
+function computeStableLayoutMode(marker){
+  const markerRect = marker.getBoundingClientRect();
+  const mapRect = map.getBoundingClientRect();
+
+  // ancre = bas du blason
+  anchor.x = (markerRect.left - mapRect.left) + markerRect.width/2;
+  anchor.y = (markerRect.top  - mapRect.top)  + markerRect.height; // bottom
+
+  // mesurer la page 2 (hauteur max)
+  const saved = tooltip.innerHTML;
+  tooltip.style.display = "block";
+  tooltip.innerHTML = buildTooltip(currentRow, 2);
+  tooltip.classList.remove("below");
+
+  const tipRect = tooltip.getBoundingClientRect();
+  const gap = 10;
+
+  const wouldGoAbove = (anchor.y - tipRect.height - gap) < 0;
+
+  tooltip.innerHTML = saved;
+
+  layoutMode = wouldGoAbove ? "below" : "above";
+}
+
+/* Place la tooltip (clamp X + clamp Y) */
+function placeTooltipAnchored(){
   tooltip.style.display = "block";
 
-  const markerRect = marker.getBoundingClientRect();
   const mapRect = map.getBoundingClientRect();
   const tipRect = tooltip.getBoundingClientRect();
 
-  let x = (markerRect.left - mapRect.left) + markerRect.width/2;
-  let yTop = (markerRect.top - mapRect.top);
+  const gap = 10;
+  const paddingX = 8;
+  const paddingY = 8;
 
-  const padding = 8;
-  x = clamp(x, tipRect.width/2 + padding, mapRect.width - tipRect.width/2 - padding);
+  // clamp X
+  let x = clamp(anchor.x, tipRect.width/2 + paddingX, mapRect.width - tipRect.width/2 - paddingX);
 
-  const wouldGoAbove = (yTop - tipRect.height - 18) < 0;
+  // top selon mode
+  let top = (layoutMode === "below")
+    ? (anchor.y + gap)
+    : (anchor.y - tipRect.height - gap);
 
-  if(wouldGoAbove){
-    tooltip.classList.add("below");
-    tooltip.style.transform = "translate(-50%, 20px)";
-    tooltip.style.left = x + "px";
-    tooltip.style.top  = (yTop + markerRect.height/2) + "px";
-  } else {
-    tooltip.classList.remove("below");
-    tooltip.style.transform = "translate(-50%,-90%)";
-    tooltip.style.left = x + "px";
-    tooltip.style.top  = yTop + "px";
-  }
+  // clamp Y dans la carte (utile sur mobile)
+  top = clamp(top, paddingY, mapRect.height - tipRect.height - paddingY);
+
+  if(layoutMode === "below") tooltip.classList.add("below");
+  else tooltip.classList.remove("below");
+
+  tooltip.style.left = x + "px";
+  tooltip.style.top  = top + "px";
 }
 
 function openForMarker(marker){
@@ -357,7 +408,8 @@ function openForMarker(marker){
   }
 
   tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltipNearMarker(marker);
+  computeStableLayoutMode(marker);
+  placeTooltipAnchored();
 }
 
 function closeTooltip(){
@@ -367,7 +419,7 @@ function closeTooltip(){
   currentPage = 1;
 }
 
-/* navigation tooltip (event delegation) */
+/* Navigation tooltip */
 tooltip.addEventListener("click", (e) => {
   e.stopPropagation();
 
@@ -375,45 +427,38 @@ tooltip.addEventListener("click", (e) => {
   if(!btn) return;
 
   const action = btn.getAttribute("data-action");
-  if(action === "prev" && currentPage > 1){
-    currentPage--;
-  } else if(action === "next" && currentPage < 2){
-    currentPage++;
-  } else {
-    return;
-  }
+
+  if(action === "prev" && currentPage > 1) currentPage--;
+  else if(action === "next" && currentPage < 2) currentPage++;
+  else return;
 
   tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltipNearMarker(currentMarker);
+  placeTooltipAnchored(); // ancre fixe, pas de “glissement”
 });
 
 /* Click markers */
 document.querySelectorAll(".marker").forEach(marker => {
   marker.addEventListener("click", (e) => {
     e.stopPropagation();
-
-    if(currentMarker === marker){
-      closeTooltip();
-      return;
-    }
-    openForMarker(marker);
+    if(currentMarker === marker) closeTooltip();
+    else openForMarker(marker);
   });
 });
 
 /* Click dehors = fermer */
 document.addEventListener("click", () => closeTooltip());
 
-/* Reposition si resize/scroll */
-window.addEventListener("resize", () => {
+/* Reposition si resize/scroll (mobile) */
+function repositionIfOpen(){
   if(currentMarker && tooltip.style.display === "block"){
-    placeTooltipNearMarker(currentMarker);
+    // recalcul ancre + mode stable
+    computeStableLayoutMode(currentMarker);
+    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+    placeTooltipAnchored();
   }
-});
-window.addEventListener("scroll", () => {
-  if(currentMarker && tooltip.style.display === "block"){
-    placeTooltipNearMarker(currentMarker);
-  }
-}, { passive:true });
+}
+window.addEventListener("resize", repositionIfOpen);
+window.addEventListener("scroll", repositionIfOpen, { passive:true });
 </script>
 
 </body>
