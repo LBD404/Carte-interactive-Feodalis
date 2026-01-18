@@ -2,23 +2,23 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=yes">
 <title>Carte interactive Feodalis</title>
 <link rel="icon" type="image/png" href="favicon.png">
 
 <style>
-html, body{
+html,body{
   margin:0;
   padding:0;
   background:#0f2a3a;
-  font-family: serif;
+  font-family:serif;
 }
 
 #map-wrapper{
   width:100%;
   display:flex;
   justify-content:center;
-  padding:20px;
+  padding:10px;
   box-sizing:border-box;
 }
 
@@ -28,71 +28,50 @@ html, body{
 }
 
 #map-image{
-  display:block;
   width:100%;
-  height:auto;
+  display:block;
 }
 
-/* couche des marqueurs */
+/* couche markers */
 #markers-layer{
   position:absolute;
   inset:0;
   pointer-events:none;
 }
 
-/* ===== BLASONS (RESPONSIVE) ===== */
+/* blasons */
 .marker{
   position:absolute;
-  width:clamp(36px, 6vw, 90px);
-  height:clamp(36px, 6vw, 90px);
+  width:clamp(32px,6vw,80px);
+  height:clamp(32px,6vw,80px);
   transform:translate(-50%,-50%);
   cursor:pointer;
   pointer-events:auto;
-  transition:transform 0.2s ease;
 }
-
-.marker:hover{
-  transform:translate(-50%,-50%) scale(1.1);
-}
-
 .marker img{
   width:100%;
   height:100%;
   object-fit:contain;
 }
 
-/* ===== BULLE ===== */
+/* bulle */
 .tooltip{
   position:absolute;
   background:#6b4a2d;
   color:#f5e6c8;
-
-  /* ✅ taille adaptative */
-  padding:clamp(7px, 1.8vw, 10px) clamp(8px, 2.2vw, 12px);
   border-radius:12px;
-  font-size:clamp(12px, 2.8vw, 14px);
-
-  display:none;
-  z-index:999;
-  pointer-events:auto;
+  padding:clamp(6px,2vw,10px) clamp(8px,3vw,12px);
+  font-size:clamp(11px,3vw,14px);
+  max-width:clamp(220px,80vw,300px);
   box-shadow:0 6px 16px rgba(0,0,0,0.4);
-
-  width:max-content;
-  max-width:min(300px, 86vw); /* ✅ plus petit sur mobile */
-  text-align:left;
-
-  /* ✅ évite les lignes infinies */
-  overflow-wrap:anywhere;
-  word-break:break-word;
-
-  /* position du V (injectée en JS) */
-  --arrow-x: 50%;
+  z-index:999;
+  display:none;
+  pointer-events:auto;
+  --arrow-x:50%;
 }
 
 .tooltip *{ pointer-events:auto; }
-.tooltip strong{ color:#ffd89c; }
 
-/* petit V : maintenant centré sur le BLASON même si la bulle est clampée */
 .tooltip::after{
   content:"";
   position:absolute;
@@ -102,91 +81,60 @@ html, body{
 }
 
 .tooltip:not(.below)::after{
-  bottom:-5px;
+  bottom:-6px;
   border-width:6px 6px 0 6px;
   border-color:#6b4a2d transparent transparent transparent;
 }
 
 .tooltip.below::after{
-  top:-5px;
+  top:-6px;
   border-width:0 6px 6px 6px;
   border-color:transparent transparent #6b4a2d transparent;
 }
 
-/* ===== CONTENU BULLE ===== */
+/* contenu */
 .tip-header{
   display:flex;
   justify-content:space-between;
-  align-items:flex-start;
   gap:10px;
-  margin-bottom:6px;
 }
-
-.tip-title{ font-weight:700; }
-
-.tip-sub{
-  font-size:clamp(10.5px, 2.6vw, 12px);
-  opacity:0.95;
-  line-height:1.2;
-}
-
+.tip-title{font-weight:bold;}
+.tip-sub{font-size:clamp(10px,2.5vw,12px);line-height:1.2;}
 .tip-divider{
   height:1px;
-  background:rgba(255,255,255,0.18);
-  margin:8px 0;
+  background:rgba(255,255,255,0.2);
+  margin:6px 0;
 }
-
 .tip-grid{
   display:grid;
   grid-template-columns:auto 1fr;
-  gap:4px 10px;
-  line-height:1.25;
-  font-size:clamp(11px, 2.6vw, 13px);
+  gap:4px 8px;
+  font-size:clamp(11px,2.8vw,13px);
 }
+.k{opacity:0.9;}
+.v{text-align:right;font-weight:bold;}
 
-.k{ opacity:0.95; }
-
-.v{
-  text-align:right;
-  font-weight:600;
-  color:#fff2cf;
-}
-
-/* pagination */
 .tip-nav{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-top:8px;
-  gap:10px;
+  margin-top:6px;
 }
-
 .tip-btn{
-  background:rgba(255,255,255,0.10);
-  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.15);
+  border:1px solid rgba(255,255,255,0.2);
   color:#f5e6c8;
   border-radius:8px;
-  padding:clamp(4px, 1.6vw, 6px) clamp(6px, 2vw, 9px);
+  padding:clamp(4px,2vw,6px) clamp(6px,3vw,8px);
+  font-size:clamp(9px,2.5vw,10px);
   cursor:pointer;
-  font-family:inherit;
-  font-size:clamp(9px, 2.4vw, 10px);
-  user-select:none;
-  line-height:1;
 }
+.tip-btn:disabled{opacity:0.4;}
 
-.tip-btn:disabled{
-  opacity:0.35;
-  cursor:not-allowed;
-}
-
-.tip-page{
-  font-size:clamp(10px, 2.5vw, 12px);
-  opacity:0.9;
-}
-
-@media (max-width: 640px){
-  #map-wrapper{ padding:10px; }
-  .tooltip{ max-width:86vw; } /* encore un peu plus strict mobile */
+@media(max-width:640px){
+  .tooltip{
+    max-width:90vw;
+  }
 }
 </style>
 </head>
@@ -195,31 +143,30 @@ html, body{
 
 <div id="map-wrapper">
   <div id="map-container">
-
-    <img id="map-image" src="carte.png" alt="Carte Feodalis">
+    <img id="map-image" src="carte.png">
 
     <div id="markers-layer">
 
-      <!-- COORDONNÉES (inchangées) -->
-      <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
-      <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
-      <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
-      <div class="marker" style="left:11.62%; top:6.69%;" data-maison="Lombard"><img src="Lombard.png" alt="Lombard"></div>
-      <div class="marker" style="left:11.77%; top:35.99%;" data-maison="Givre-Bois"><img src="Givre-Bois.png" alt="Givre-Bois"></div>
-      <div class="marker" style="left:8.40%; top:48.97%;" data-maison="Montcristal"><img src="Montcristal.png" alt="Montcristal"></div>
-      <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda"><img src="Leda.png" alt="Léda"></div>
-      <div class="marker" style="left:30.81%; top:37.99%;" data-maison="Bellini"><img src="Bellini.png" alt="Bellini"></div>
-      <div class="marker" style="left:46.83%; top:4.49%;" data-maison="Contrevent"><img src="Contrevent.png" alt="Contrevent"></div>
-      <div class="marker" style="left:55.08%; top:23.00%;" data-maison="Clawthorne"><img src="Clawthorne.png" alt="Clawthorne"></div>
-      <div class="marker" style="left:57.76%; top:43.75%;" data-maison="Messny"><img src="Messny.png" alt="Messny"></div>
-      <div class="marker" style="left:58.59%; top:56.49%;" data-maison="Valor"><img src="Valor.png" alt="Valor"></div>
-      <div class="marker" style="left:60.99%; top:72.31%;" data-maison="Lebon"><img src="Lebon.png" alt="Lebon"></div>
-      <div class="marker" style="left:57.03%; top:83.74%;" data-maison="Taurmont"><img src="Taurmont.png" alt="Taurmont"></div>
-      <div class="marker" style="left:24.27%; top:88.48%;" data-maison="Astraghort"><img src="Astraghort.png" alt="Astraghort"></div>
-      <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
-      <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png" alt="Malty"></div>
-      <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png" alt="Heruli"></div>
-      <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
+      <!-- COORDONNÉES -->
+      <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png"></div>
+      <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png"></div>
+      <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png"></div>
+      <div class="marker" style="left:11.62%; top:6.69%;" data-maison="Lombard"><img src="Lombard.png"></div>
+      <div class="marker" style="left:11.77%; top:35.99%;" data-maison="Givre-Bois"><img src="Givre-Bois.png"></div>
+      <div class="marker" style="left:8.40%; top:48.97%;" data-maison="Montcristal"><img src="Montcristal.png"></div>
+      <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda"><img src="Leda.png"></div>
+      <div class="marker" style="left:30.81%; top:37.99%;" data-maison="Bellini"><img src="Bellini.png"></div>
+      <div class="marker" style="left:46.83%; top:4.49%;" data-maison="Contrevent"><img src="Contrevent.png"></div>
+      <div class="marker" style="left:55.08%; top:23%;" data-maison="Clawthorne"><img src="Clawthorne.png"></div>
+      <div class="marker" style="left:57.76%; top:43.75%;" data-maison="Messny"><img src="Messny.png"></div>
+      <div class="marker" style="left:58.59%; top:56.49%;" data-maison="Valor"><img src="Valor.png"></div>
+      <div class="marker" style="left:60.99%; top:72.31%;" data-maison="Lebon"><img src="Lebon.png"></div>
+      <div class="marker" style="left:57.03%; top:83.74%;" data-maison="Taurmont"><img src="Taurmont.png"></div>
+      <div class="marker" style="left:24.27%; top:88.48%;" data-maison="Astraghort"><img src="Astraghort.png"></div>
+      <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png"></div>
+      <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png"></div>
+      <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png"></div>
+      <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png"></div>
 
       <div id="tooltip" class="tooltip"></div>
     </div>
@@ -227,228 +174,132 @@ html, body{
 </div>
 
 <script>
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
-let sheetData = [];
-let dataReady = false;
+let sheetData=[];
+let currentMarker=null,currentRow=null,currentPage=1;
+let anchor={x:0,y:0},layoutMode="above";
 
-function normalize(str){
-  return (str || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9]/g,"");
+function normalize(s){
+  return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 }
 
-fetch(SHEET_URL)
-  .then(r => r.text())
-  .then(text => {
-    sheetData = text.split("\n").map(l => l.split("\t"));
-    dataReady = true;
-  })
-  .catch(() => { dataReady = false; });
-
-const tooltip = document.getElementById("tooltip");
-const map = document.getElementById("map-container");
-
-let currentMarker = null;
-let currentRow = null;
-let currentPage = 1;
-
-let anchor = { x: 0, y: 0 };
-let layoutMode = "above";
-
-function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
-
-function buildTooltip(row, page){
-  if(!dataReady){
-    return `<div class="tip-title"><strong>Chargement des données…</strong></div>`;
-  }
-  if(!row){
-    return `<div class="tip-title"><strong>Données absentes</strong></div>`;
-  }
-
-  const royaume = row[0] || "";
-  const maison  = row[1] || "";
-  const rang    = row[3] || "";
-  const lige    = row[4] || "";
-
-  const g = row[6] ?? "";
-  const h = row[7] ?? "";
-  const i = row[8] ?? "";
-
-  const j = row[9]  ?? "";
-  const k = row[10] ?? "";
-  const l = row[11] ?? "";
-  const m = row[12] ?? "";
-  const n = row[13] ?? "";
-
-  const header = `
-    <div class="tip-header">
-      <div>
-        <div class="tip-title"><strong>${maison}</strong></div>
-        <div class="tip-sub">
-          Royaume : ${royaume || "—"}<br>
-          Rang : ${rang || "—"}<br>
-          Seigneur lige : ${lige || "—"}
-        </div>
-      </div>
-      <div class="tip-page">Page ${page}/2</div>
-    </div>
-    <div class="tip-divider"></div>
-  `;
-
-  const page1 = `
-    <div class="tip-grid">
-      <div class="k">Tech. militaire</div><div class="v">${g || "—"}</div>
-      <div class="k">Économie</div><div class="v">${h || "—"}</div>
-      <div class="k">Fortification</div><div class="v">${i || "—"}</div>
-    </div>
-  `;
-
-  const page2 = `
-    <div class="tip-grid">
-      <div class="k">Armes tranchantes</div><div class="v">${j || "—"}</div>
-      <div class="k">Armes contondantes</div><div class="v">${k || "—"}</div>
-      <div class="k">Armes d'hast</div><div class="v">${l || "—"}</div>
-      <div class="k">Arme de projection</div><div class="v">${m || "—"}</div>
-      <div class="k">Sens du combat</div><div class="v">${n || "—"}</div>
-    </div>
-  `;
-
-  const nav = `
-    <div class="tip-nav">
-      <button class="tip-btn" data-action="prev" ${page===1 ? "disabled" : ""}>◀</button>
-      <div class="tip-page">${page===1 ? "Stats principales" : "Stats de champion"}</div>
-      <button class="tip-btn" data-action="next" ${page===2 ? "disabled" : ""}>▶</button>
-    </div>
-  `;
-
-  return header + (page===1 ? page1 : page2) + nav;
-}
-
-function computeStableLayoutMode(marker){
-  const markerRect = marker.getBoundingClientRect();
-  const mapRect = map.getBoundingClientRect();
-
-  // ancre = bas du blason (point du V)
-  anchor.x = (markerRect.left - mapRect.left) + markerRect.width/2;
-  anchor.y = (markerRect.top  - mapRect.top)  + markerRect.height;
-
-  // mesurer page2 (hauteur max)
-  const saved = tooltip.innerHTML;
-  tooltip.style.display = "block";
-  tooltip.innerHTML = buildTooltip(currentRow, 2);
-  tooltip.classList.remove("below");
-
-  const tipRect = tooltip.getBoundingClientRect();
-  const gap = 10;
-
-  const wouldGoAbove = (anchor.y - tipRect.height - gap) < 0;
-
-  tooltip.innerHTML = saved;
-  layoutMode = wouldGoAbove ? "below" : "above";
-}
-
-function placeTooltipAnchored(){
-  tooltip.style.display = "block";
-
-  const mapRect = map.getBoundingClientRect();
-  const tipRect = tooltip.getBoundingClientRect();
-
-  const gap = 10;
-  const paddingX = 8;
-  const paddingY = 8;
-
-  // on place la BULLE par son centre
-  let x = anchor.x;
-  x = clamp(x, tipRect.width/2 + paddingX, mapRect.width - tipRect.width/2 - paddingX);
-
-  let top = (layoutMode === "below")
-    ? (anchor.y + gap)
-    : (anchor.y - tipRect.height - gap);
-
-  top = clamp(top, paddingY, mapRect.height - tipRect.height - paddingY);
-
-  // ✅ calcul de la position du V dans la bulle, pour rester aligné sur le blason
-  const leftOfTooltip = x - tipRect.width/2;
-  let arrowX = anchor.x - leftOfTooltip;
-
-  // garde le V dans la bulle (évite qu’il sorte aux bords)
-  const arrowPadding = 14;
-  arrowX = clamp(arrowX, arrowPadding, tipRect.width - arrowPadding);
-
-  tooltip.style.setProperty("--arrow-x", arrowX + "px");
-
-  if(layoutMode === "below") tooltip.classList.add("below");
-  else tooltip.classList.remove("below");
-
-  tooltip.style.left = x + "px";
-  tooltip.style.top  = top + "px";
-}
-
-function openForMarker(marker){
-  currentMarker = marker;
-  currentPage = 1;
-
-  const maison = marker.dataset.maison || "";
-  const key = normalize(maison);
-
-  currentRow = null;
-  if(dataReady){
-    for(const row of sheetData){
-      if(row[1] && normalize(row[1]) === key){
-        currentRow = row;
-        break;
-      }
-    }
-  }
-
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  computeStableLayoutMode(marker);
-  placeTooltipAnchored();
-}
-
-function closeTooltip(){
-  tooltip.style.display = "none";
-  currentMarker = null;
-  currentRow = null;
-  currentPage = 1;
-}
-
-tooltip.addEventListener("click", (e) => {
-  e.stopPropagation();
-  const btn = e.target.closest("[data-action]");
-  if(!btn) return;
-
-  const action = btn.getAttribute("data-action");
-  if(action === "prev" && currentPage > 1) currentPage--;
-  else if(action === "next" && currentPage < 2) currentPage++;
-  else return;
-
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltipAnchored(); // ancre et V restent centrés
+fetch(SHEET_URL).then(r=>r.text()).then(t=>{
+  sheetData=t.split("\n").map(l=>l.split("\t"));
 });
 
-document.querySelectorAll(".marker").forEach(marker => {
-  marker.addEventListener("click", (e) => {
+const tooltip=document.getElementById("tooltip");
+const map=document.getElementById("map-container");
+
+function buildTooltip(row,page){
+  if(!row) return "<b>Données absentes</b>";
+
+  const royaume=row[0], maison=row[1], rang=row[3], lige=row[4];
+  const g=row[6],h=row[7],i=row[8];
+  const j=row[9],k=row[10],l=row[11],m=row[12],n=row[13];
+
+  return `
+  <div class="tip-header">
+    <div>
+      <div class="tip-title">${maison}</div>
+      <div class="tip-sub">
+        Royaume : ${royaume}<br>
+        Rang : ${rang}<br>
+        Seigneur lige : ${lige}
+      </div>
+    </div>
+    <div>Page ${page}/2</div>
+  </div>
+  <div class="tip-divider"></div>
+  ${
+    page===1 ?
+    `<div class="tip-grid">
+      <div class="k">Tech. militaire</div><div class="v">${g}</div>
+      <div class="k">Économie</div><div class="v">${h}</div>
+      <div class="k">Fortification</div><div class="v">${i}</div>
+    </div>` :
+    `<div class="tip-grid">
+      <div class="k">Armes tranchantes</div><div class="v">${j}</div>
+      <div class="k">Armes contondantes</div><div class="v">${k}</div>
+      <div class="k">Armes d’hast</div><div class="v">${l}</div>
+      <div class="k">Arme de projection</div><div class="v">${m}</div>
+      <div class="k">Sens du combat</div><div class="v">${n}</div>
+    </div>`
+  }
+  <div class="tip-nav">
+    <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
+    <div>${page===1?"Stats principales":"Stats de champion"}</div>
+    <button class="tip-btn" data-action="next" ${page===2?"disabled":""}>▶</button>
+  </div>`;
+}
+
+function placeTooltip(){
+  const mapRect=map.getBoundingClientRect();
+  const tipRect=tooltip.getBoundingClientRect();
+  const gap=10;
+
+  let x=anchor.x;
+  x=Math.max(tipRect.width/2,Math.min(mapRect.width-tipRect.width/2,x));
+
+  let top= layoutMode==="below" ? anchor.y+gap : anchor.y-tipRect.height-gap;
+  top=Math.max(0,Math.min(mapRect.height-tipRect.height,top));
+
+  const left=x-tipRect.width/2;
+  let arrowX=anchor.x-left;
+  arrowX=Math.max(14,Math.min(tipRect.width-14,arrowX));
+  tooltip.style.setProperty("--arrow-x",arrowX+"px");
+
+  tooltip.classList.toggle("below",layoutMode==="below");
+  tooltip.style.left=x+"px";
+  tooltip.style.top=top+"px";
+  tooltip.style.display="block";
+}
+
+function openFor(marker){
+  currentMarker=marker;
+  currentPage=1;
+  const key=normalize(marker.dataset.maison);
+  currentRow=sheetData.find(r=>normalize(r[1])===key);
+
+  tooltip.innerHTML=buildTooltip(currentRow,1);
+
+  const m=marker.getBoundingClientRect();
+  const c=map.getBoundingClientRect();
+  anchor.x=m.left-c.left+m.width/2;
+  anchor.y=m.top-c.top+m.height;
+
+  tooltip.style.display="block";
+  tooltip.innerHTML=buildTooltip(currentRow,2);
+  const h=tooltip.getBoundingClientRect().height;
+  layoutMode=(anchor.y-h-10<0)?"below":"above";
+
+  tooltip.innerHTML=buildTooltip(currentRow,1);
+  placeTooltip();
+}
+
+tooltip.addEventListener("click",e=>{
+  const b=e.target.closest("[data-action]");
+  if(!b) return;
+  if(b.dataset.action==="prev" && currentPage>1) currentPage--;
+  if(b.dataset.action==="next" && currentPage<2) currentPage++;
+  tooltip.innerHTML=buildTooltip(currentRow,currentPage);
+  placeTooltip();
+});
+
+document.querySelectorAll(".marker").forEach(m=>{
+  m.addEventListener("click",e=>{
     e.stopPropagation();
-    if(currentMarker === marker) closeTooltip();
-    else openForMarker(marker);
+    if(currentMarker===m){
+      tooltip.style.display="none";
+      currentMarker=null;
+    }else openFor(m);
   });
 });
 
-document.addEventListener("click", () => closeTooltip());
-
-function repositionIfOpen(){
-  if(currentMarker && tooltip.style.display === "block"){
-    computeStableLayoutMode(currentMarker);
-    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-    placeTooltipAnchored();
-  }
-}
-window.addEventListener("resize", repositionIfOpen);
-window.addEventListener("scroll", repositionIfOpen, { passive:true });
+document.addEventListener("click",()=>{
+  tooltip.style.display="none";
+  currentMarker=null;
+});
 </script>
 
 </body>
