@@ -42,8 +42,8 @@ html, body{
 /* ===== BLASONS ===== */
 .marker{
   position:absolute;
-  width:90px;
-  height:90px;
+  width:60px;
+  height:60px;
   transform:translate(-50%,-50%);
   cursor:pointer;
   pointer-events:auto;
@@ -65,30 +65,110 @@ html, body{
   position:absolute;
   background:#6b4a2d;
   color:#f5e6c8;
-  padding:10px 14px;
+  padding:10px 12px;
   border-radius:10px;
   font-size:14px;
   display:none;
   z-index:20;
-  transform:translate(-50%,-90%);
+  transform:translate(-50%,-90%); /* au-dessus par défaut */
   box-shadow:0 6px 16px rgba(0,0,0,0.4);
-  max-width:260px;
+  max-width:300px;
   text-align:left;
 }
 
+.tooltip strong{ color:#ffd89c; }
+
+/* petit V (par défaut en bas) */
 .tooltip::after{
   content:"";
   position:absolute;
-  bottom:-5px;
   left:50%;
   transform:translateX(-50%);
-  border-width:6px 6px 0 6px;
   border-style:solid;
+}
+.tooltip:not(.below)::after{
+  bottom:-5px;
+  border-width:6px 6px 0 6px;
   border-color:#6b4a2d transparent transparent transparent;
 }
+.tooltip.below::after{
+  top:-5px;
+  border-width:0 6px 6px 6px;
+  border-color:transparent transparent #6b4a2d transparent;
+}
 
-.tooltip strong{
-  color:#ffd89c;
+/* ===== CONTENU BULLE ===== */
+.tip-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:6px;
+}
+
+.tip-title{
+  font-weight:700;
+}
+
+.tip-sub{
+  font-size:12px;
+  opacity:0.95;
+  line-height:1.2;
+}
+
+.tip-divider{
+  height:1px;
+  background:rgba(255,255,255,0.18);
+  margin:8px 0;
+}
+
+.tip-grid{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:4px 10px;
+  line-height:1.25;
+  font-size:13px;
+}
+
+.k{
+  opacity:0.95;
+}
+
+.v{
+  text-align:right;
+  font-weight:600;
+  color:#fff2cf;
+}
+
+/* pagination */
+.tip-nav{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:8px;
+  gap:10px;
+}
+
+.tip-btn{
+  background:rgba(255,255,255,0.10);
+  border:1px solid rgba(255,255,255,0.18);
+  color:#f5e6c8;
+  border-radius:8px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:13px;
+  user-select:none;
+}
+
+.tip-btn:disabled{
+  opacity:0.35;
+  cursor:not-allowed;
+}
+
+.tip-page{
+  font-size:12px;
+  opacity:0.9;
 }
 </style>
 </head>
@@ -102,6 +182,7 @@ html, body{
 
     <div id="markers-layer">
 
+      <!-- COORDONNÉES (modèle) -->
       <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
       <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
       <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
@@ -120,21 +201,30 @@ html, body{
       <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
       <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png" alt="Malty"></div>
       <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png" alt="Heruli"></div>
-      <div class="marker" style="left:70%; top:27%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
+      <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
 
       <div id="tooltip" class="tooltip"></div>
-    </div>
 
+    </div>
   </div>
 </div>
 
 <script>
+/*
+  Colonnes (index 0-based) :
+  A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11, M=12, N=13
+  - Nom maison : colonne B (1)
+  - Rang : colonne D (3)
+  - Seigneur lige : colonne E (4)
+  - Stats principales : G,H,I (6,7,8)
+  - Stats secondaires : J,K,L,M,N (9..13)
+*/
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
 let sheetData = [];
 
 function normalize(str){
-  return str
+  return (str || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g,"")
@@ -150,109 +240,171 @@ fetch(SHEET_URL)
 const tooltip = document.getElementById("tooltip");
 const map = document.getElementById("map-container");
 let currentMarker = null;
+let currentRow = null;
+let currentPage = 1;
 
-/* clamp helper */
 function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+function buildTooltip(row, page){
+  if(!row){
+    return `<div class="tip-title"><strong>Données absentes</strong></div>`;
+  }
+
+  const maison = row[1] || "";
+  const rang = row[3] || "";
+  const lige = row[4] || "";
+
+  // principales G,H,I
+  const g = row[6] ?? "";
+  const h = row[7] ?? "";
+  const i = row[8] ?? "";
+
+  // secondaires J..N
+  const j = row[9] ?? "";
+  const k = row[10] ?? "";
+  const l = row[11] ?? "";
+  const m = row[12] ?? "";
+  const n = row[13] ?? "";
+
+  const header = `
+    <div class="tip-header">
+      <div>
+        <div class="tip-title"><strong>${maison}</strong></div>
+        <div class="tip-sub">Rang : ${rang || "—"}<br>Seigneur lige : ${lige || "—"}</div>
+      </div>
+      <div class="tip-page">Page ${page}/2</div>
+    </div>
+    <div class="tip-divider"></div>
+  `;
+
+  const page1 = `
+    <div class="tip-grid">
+      <div class="k">Tech. militaire</div><div class="v">${g || "—"}</div>
+      <div class="k">Économie</div><div class="v">${h || "—"}</div>
+      <div class="k">Fortification</div><div class="v">${i || "—"}</div>
+    </div>
+  `;
+
+  // Tu peux renommer ces libellés si tu as des noms précis pour J..N
+  const page2 = `
+    <div class="tip-grid">
+      <div class="k">Stat J</div><div class="v">${j || "—"}</div>
+      <div class="k">Stat K</div><div class="v">${k || "—"}</div>
+      <div class="k">Stat L</div><div class="v">${l || "—"}</div>
+      <div class="k">Stat M</div><div class="v">${m || "—"}</div>
+      <div class="k">Stat N</div><div class="v">${n || "—"}</div>
+    </div>
+  `;
+
+  const nav = `
+    <div class="tip-nav">
+      <button class="tip-btn" id="tip-prev" ${page===1 ? "disabled" : ""}>◀</button>
+      <div class="tip-page">${page===1 ? "Stats principales" : "Stats secondaires"}</div>
+      <button class="tip-btn" id="tip-next" ${page===2 ? "disabled" : ""}>▶</button>
+    </div>
+  `;
+
+  return header + (page===1 ? page1 : page2) + nav;
+}
+
+function placeTooltipNearMarker(marker){
+  // Affiche d'abord pour mesurer correctement
+  tooltip.style.display = "block";
+
+  const markerRect = marker.getBoundingClientRect();
+  const mapRect = map.getBoundingClientRect();
+  const tipRect = tooltip.getBoundingClientRect();
+
+  // Position "idéale" : au-dessus du marqueur
+  let x = (markerRect.left - mapRect.left) + markerRect.width/2;
+  let y = (markerRect.top - mapRect.top);
+
+  // Clamp horizontale
+  const padding = 8;
+  x = clamp(x, tipRect.width/2 + padding, mapRect.width - tipRect.width/2 - padding);
+
+  // Si dépasse en haut => place en dessous
+  const wouldGoAbove = (y - tipRect.height - 18) < 0;
+  if(wouldGoAbove){
+    tooltip.classList.add("below");
+    tooltip.style.transform = "translate(-50%, 20px)";
+    tooltip.style.left = x + "px";
+    tooltip.style.top  = (y + markerRect.height/2) + "px";
+  } else {
+    tooltip.classList.remove("below");
+    tooltip.style.transform = "translate(-50%,-90%)";
+    tooltip.style.left = x + "px";
+    tooltip.style.top  = y + "px";
+  }
+}
+
+function wireTooltipButtons(){
+  const prev = document.getElementById("tip-prev");
+  const next = document.getElementById("tip-next");
+
+  if(prev) prev.onclick = (e) => {
+    e.stopPropagation();
+    if(currentRow && currentPage > 1){
+      currentPage--;
+      tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+      wireTooltipButtons();
+      placeTooltipNearMarker(currentMarker);
+    }
+  };
+
+  if(next) next.onclick = (e) => {
+    e.stopPropagation();
+    if(currentRow && currentPage < 2){
+      currentPage++;
+      tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+      wireTooltipButtons();
+      placeTooltipNearMarker(currentMarker);
+    }
+  };
+}
 
 document.querySelectorAll(".marker").forEach(marker => {
   marker.addEventListener("click", e => {
     e.stopPropagation();
 
+    // toggle (clic à nouveau = fermer)
     if(currentMarker === marker){
       tooltip.style.display = "none";
       currentMarker = null;
+      currentRow = null;
+      currentPage = 1;
       return;
     }
+
     currentMarker = marker;
+    currentPage = 1;
 
     const maison = marker.dataset.maison;
-    const maisonNorm = normalize(maison);
+    const key = normalize(maison);
 
-    let rowFound = null;
+    // recherche par colonne B (1)
+    currentRow = null;
     for(const row of sheetData){
-      if(row[1] && normalize(row[1]) === maisonNorm){
-        rowFound = row;
+      if(row[1] && normalize(row[1]) === key){
+        currentRow = row;
         break;
       }
     }
 
-    tooltip.innerHTML = rowFound
-      ? `<strong>${rowFound[1]}</strong><br>
-         Tech. militaire : ${rowFound[5]}<br>
-         Économie : ${rowFound[6]}<br>
-         Fortification : ${rowFound[7]}`
-      : `<strong>${maison}</strong><br>Données absentes`;
-
-    tooltip.style.display = "block"; // pour mesurer sa taille
-
-    const markerRect = marker.getBoundingClientRect();
-    const mapRect = map.getBoundingClientRect();
-    const tipRect = tooltip.getBoundingClientRect();
-
-    // position "idéale" : au-dessus du marqueur
-    let x = (markerRect.left - mapRect.left) + markerRect.width/2;
-    let y = (markerRect.top - mapRect.top);
-
-    // Clamp horizontale pour rester dans le cadre
-    const padding = 8;
-    x = clamp(x, tipRect.width/2 + padding, mapRect.width - tipRect.width/2 - padding);
-
-    // Si la bulle dépasse en haut, on la met en dessous du marqueur
-    const wouldGoAbove = (y - tipRect.height - 18) < 0; // 18 ≈ marge + V
-    if(wouldGoAbove){
-      tooltip.style.transform = "translate(-50%, 20px)";  // sous le marqueur
-      tooltip.style.top = (y + markerRect.height/2) + "px";
-      tooltip.style.left = x + "px";
-
-      // retourne le petit V vers le haut
-      tooltip.style.setProperty("--arrow-flip", "1");
-      tooltip.classList.add("below");
-    } else {
-      tooltip.style.transform = "translate(-50%, -90%)";  // au-dessus
-      tooltip.style.top = y + "px";
-      tooltip.style.left = x + "px";
-      tooltip.classList.remove("below");
-    }
-
-    // Ajuste la flèche selon la position
-    if(tooltip.classList.contains("below")){
-      tooltip.style.setProperty("--arrow-top", "true");
-    } else {
-      tooltip.style.setProperty("--arrow-top", "false");
-    }
+    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+    wireTooltipButtons();
+    placeTooltipNearMarker(marker);
   });
 });
 
+// clic ailleurs = fermer
 document.body.addEventListener("click", () => {
   tooltip.style.display = "none";
   currentMarker = null;
+  currentRow = null;
+  currentPage = 1;
 });
 </script>
-
-<style>
-/* Flèche adaptative : par défaut vers le bas (bulle au-dessus) */
-.tooltip::after{
-  content:"";
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  border-style:solid;
-}
-
-/* Quand la bulle est au-dessus (flèche en bas) */
-.tooltip:not(.below)::after{
-  bottom:-5px;
-  border-width:6px 6px 0 6px;
-  border-color:#6b4a2d transparent transparent transparent;
-}
-
-/* Quand la bulle est en dessous (flèche en haut) */
-.tooltip.below::after{
-  top:-5px;
-  border-width:0 6px 6px 6px;
-  border-color:transparent transparent #6b4a2d transparent;
-}
-</style>
 
 </body>
 </html>
