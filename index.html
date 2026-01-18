@@ -40,11 +40,7 @@ html, body{
   pointer-events:none;
 }
 
-/* ===== BLASONS (RESPONSIVE) =====
-   - clamp(min, ideal, max)
-   - sur PC : peut monter jusqu'à 90px
-   - sur mobile : descend facilement vers 36-50px selon largeur
-*/
+/* ===== BLASONS (RESPONSIVE) ===== */
 .marker{
   position:absolute;
   width:clamp(36px, 6vw, 90px);
@@ -70,36 +66,47 @@ html, body{
   position:absolute;
   background:#6b4a2d;
   color:#f5e6c8;
-  padding:10px 12px;
-  border-radius:10px;
-  font-size:14px;
+
+  /* ✅ taille adaptative */
+  padding:clamp(7px, 1.8vw, 10px) clamp(8px, 2.2vw, 12px);
+  border-radius:12px;
+  font-size:clamp(12px, 2.8vw, 14px);
+
   display:none;
   z-index:999;
   pointer-events:auto;
   box-shadow:0 6px 16px rgba(0,0,0,0.4);
 
-  /* ✅ responsive mobile */
   width:max-content;
-  max-width:min(320px, 92vw); /* ne dépasse pas l'écran */
+  max-width:min(300px, 86vw); /* ✅ plus petit sur mobile */
   text-align:left;
+
+  /* ✅ évite les lignes infinies */
+  overflow-wrap:anywhere;
+  word-break:break-word;
+
+  /* position du V (injectée en JS) */
+  --arrow-x: 50%;
 }
 
 .tooltip *{ pointer-events:auto; }
 .tooltip strong{ color:#ffd89c; }
 
-/* petit V */
+/* petit V : maintenant centré sur le BLASON même si la bulle est clampée */
 .tooltip::after{
   content:"";
   position:absolute;
-  left:50%;
+  left:var(--arrow-x);
   transform:translateX(-50%);
   border-style:solid;
 }
+
 .tooltip:not(.below)::after{
   bottom:-5px;
   border-width:6px 6px 0 6px;
   border-color:#6b4a2d transparent transparent transparent;
 }
+
 .tooltip.below::after{
   top:-5px;
   border-width:0 6px 6px 6px;
@@ -118,7 +125,7 @@ html, body{
 .tip-title{ font-weight:700; }
 
 .tip-sub{
-  font-size:12px;
+  font-size:clamp(10.5px, 2.6vw, 12px);
   opacity:0.95;
   line-height:1.2;
 }
@@ -134,7 +141,7 @@ html, body{
   grid-template-columns:auto 1fr;
   gap:4px 10px;
   line-height:1.25;
-  font-size:13px;
+  font-size:clamp(11px, 2.6vw, 13px);
 }
 
 .k{ opacity:0.95; }
@@ -159,10 +166,10 @@ html, body{
   border:1px solid rgba(255,255,255,0.18);
   color:#f5e6c8;
   border-radius:8px;
-  padding:4px 7px;
+  padding:clamp(4px, 1.6vw, 6px) clamp(6px, 2vw, 9px);
   cursor:pointer;
   font-family:inherit;
-  font-size:10px;
+  font-size:clamp(9px, 2.4vw, 10px);
   user-select:none;
   line-height:1;
 }
@@ -173,29 +180,13 @@ html, body{
 }
 
 .tip-page{
-  font-size:12px;
+  font-size:clamp(10px, 2.5vw, 12px);
   opacity:0.9;
 }
 
-/* ✅ Ajustements mobiles */
 @media (max-width: 640px){
   #map-wrapper{ padding:10px; }
-
-  .tooltip{
-    font-size:13px;
-    padding:9px 10px;
-    border-radius:12px;
-    max-width:92vw;
-  }
-
-  .tip-grid{
-    font-size:12px;
-    gap:4px 8px;
-  }
-
-  .tip-sub{ font-size:11px; }
-
-  .tip-btn{ font-size:10px; padding:5px 8px; }
+  .tooltip{ max-width:86vw; } /* encore un peu plus strict mobile */
 }
 </style>
 </head>
@@ -265,7 +256,7 @@ let currentRow = null;
 let currentPage = 1;
 
 let anchor = { x: 0, y: 0 };
-let layoutMode = "above"; // stable, basé sur hauteur max (page2)
+let layoutMode = "above";
 
 function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
 
@@ -336,16 +327,15 @@ function buildTooltip(row, page){
   return header + (page===1 ? page1 : page2) + nav;
 }
 
-/* Calcule ancre + décide above/below avec la hauteur max (page2) */
 function computeStableLayoutMode(marker){
   const markerRect = marker.getBoundingClientRect();
   const mapRect = map.getBoundingClientRect();
 
-  // ancre = bas du blason
+  // ancre = bas du blason (point du V)
   anchor.x = (markerRect.left - mapRect.left) + markerRect.width/2;
-  anchor.y = (markerRect.top  - mapRect.top)  + markerRect.height; // bottom
+  anchor.y = (markerRect.top  - mapRect.top)  + markerRect.height;
 
-  // mesurer la page 2 (hauteur max)
+  // mesurer page2 (hauteur max)
   const saved = tooltip.innerHTML;
   tooltip.style.display = "block";
   tooltip.innerHTML = buildTooltip(currentRow, 2);
@@ -357,11 +347,9 @@ function computeStableLayoutMode(marker){
   const wouldGoAbove = (anchor.y - tipRect.height - gap) < 0;
 
   tooltip.innerHTML = saved;
-
   layoutMode = wouldGoAbove ? "below" : "above";
 }
 
-/* Place la tooltip (clamp X + clamp Y) */
 function placeTooltipAnchored(){
   tooltip.style.display = "block";
 
@@ -372,16 +360,25 @@ function placeTooltipAnchored(){
   const paddingX = 8;
   const paddingY = 8;
 
-  // clamp X
-  let x = clamp(anchor.x, tipRect.width/2 + paddingX, mapRect.width - tipRect.width/2 - paddingX);
+  // on place la BULLE par son centre
+  let x = anchor.x;
+  x = clamp(x, tipRect.width/2 + paddingX, mapRect.width - tipRect.width/2 - paddingX);
 
-  // top selon mode
   let top = (layoutMode === "below")
     ? (anchor.y + gap)
     : (anchor.y - tipRect.height - gap);
 
-  // clamp Y dans la carte (utile sur mobile)
   top = clamp(top, paddingY, mapRect.height - tipRect.height - paddingY);
+
+  // ✅ calcul de la position du V dans la bulle, pour rester aligné sur le blason
+  const leftOfTooltip = x - tipRect.width/2;
+  let arrowX = anchor.x - leftOfTooltip;
+
+  // garde le V dans la bulle (évite qu’il sorte aux bords)
+  const arrowPadding = 14;
+  arrowX = clamp(arrowX, arrowPadding, tipRect.width - arrowPadding);
+
+  tooltip.style.setProperty("--arrow-x", arrowX + "px");
 
   if(layoutMode === "below") tooltip.classList.add("below");
   else tooltip.classList.remove("below");
@@ -419,24 +416,20 @@ function closeTooltip(){
   currentPage = 1;
 }
 
-/* Navigation tooltip */
 tooltip.addEventListener("click", (e) => {
   e.stopPropagation();
-
   const btn = e.target.closest("[data-action]");
   if(!btn) return;
 
   const action = btn.getAttribute("data-action");
-
   if(action === "prev" && currentPage > 1) currentPage--;
   else if(action === "next" && currentPage < 2) currentPage++;
   else return;
 
   tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltipAnchored(); // ancre fixe, pas de “glissement”
+  placeTooltipAnchored(); // ancre et V restent centrés
 });
 
-/* Click markers */
 document.querySelectorAll(".marker").forEach(marker => {
   marker.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -445,13 +438,10 @@ document.querySelectorAll(".marker").forEach(marker => {
   });
 });
 
-/* Click dehors = fermer */
 document.addEventListener("click", () => closeTooltip());
 
-/* Reposition si resize/scroll (mobile) */
 function repositionIfOpen(){
   if(currentMarker && tooltip.style.display === "block"){
-    // recalcul ancre + mode stable
     computeStableLayoutMode(currentMarker);
     tooltip.innerHTML = buildTooltip(currentRow, currentPage);
     placeTooltipAnchored();
