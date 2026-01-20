@@ -6,45 +6,17 @@
 <title>Feodalis – Carte interactive</title>
 
 <style>
-/* =========================
-   BASE
-========================= */
-html,body{
-  margin:0;
-  padding:0;
-  background:#0f2a3a;
-  font-family:serif;
+:root{
+  /* ✅ flèche ("V") +30% environ (6px -> 8px) */
+  --arrow-size: 8px;
 }
 
-#map-wrapper{
-  width:100%;
-  display:flex;
-  justify-content:center;
-  padding:10px;
-  box-sizing:border-box;
-}
+html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif;}
+#map-wrapper{width:100%;display:flex;justify-content:center;padding:10px;box-sizing:border-box;}
+#map-container{position:relative;width:min(95vw,1100px);}
+#map-image{display:block;width:100%;height:auto;}
+#markers-layer{position:absolute;inset:0;pointer-events:none;}
 
-#map-container{
-  position:relative;
-  width:min(95vw,1100px);
-}
-
-#map-image{
-  display:block;
-  width:100%;
-  height:auto;
-}
-
-/* Couche au-dessus de la carte */
-#markers-layer{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-}
-
-/* =========================
-   MARQUEURS (BLASONS)
-========================= */
 .marker{
   position:absolute;
   width:clamp(28px,6vw,90px);
@@ -53,26 +25,8 @@ html,body{
   cursor:pointer;
   pointer-events:auto;
 }
-.marker img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-}
+.marker img{width:100%;height:100%;object-fit:contain;}
 
-/* =========================
-   HOTSPOT CACHÉ SUR LE "A"
-   (zone cliquable minuscule)
-========================= */
-.hotspot{
-  position:absolute;
-  pointer-events:auto;
-  cursor:pointer;
-  background:transparent;
-}
-
-/* =========================
-   BULLE (TOOLTIP)
-========================= */
 .tooltip{
   position:absolute;
   background:#6b4a2d;
@@ -99,255 +53,587 @@ html,body{
   --arrow-x:50%;
   --arrow-y:50%;
 }
+.tooltip::after{content:"";position:absolute;border-style:solid;}
 
-/* Flèche (V) */
-.tooltip::after{
-  content:"";
-  position:absolute;
-  border-style:solid;
-}
-
-/* V en bas (bulle au-dessus) */
+/* ✅ flèche taille variable (agrandie) */
 .tooltip:not(.below):not(.arrow-left):not(.arrow-right)::after{
   left:var(--arrow-x);
   transform:translateX(-50%);
-  bottom:-8px;
-  border-width:8px 8px 0 8px;
+  bottom:calc(var(--arrow-size) * -1);
+  border-width:var(--arrow-size) var(--arrow-size) 0 var(--arrow-size);
   border-color:#6b4a2d transparent transparent transparent;
 }
-
-/* V en haut (bulle en dessous) */
 .tooltip.below:not(.arrow-left):not(.arrow-right)::after{
   left:var(--arrow-x);
   transform:translateX(-50%);
-  top:-8px;
-  border-width:0 8px 8px 8px;
+  top:calc(var(--arrow-size) * -1);
+  border-width:0 var(--arrow-size) var(--arrow-size) var(--arrow-size);
   border-color:transparent transparent #6b4a2d transparent;
 }
-
-/* V à gauche */
 .tooltip.arrow-left::after{
   top:var(--arrow-y);
   transform:translateY(-50%);
-  left:-8px;
-  border-width:8px 8px 8px 0;
+  left:calc(var(--arrow-size) * -1);
+  border-width:var(--arrow-size) var(--arrow-size) var(--arrow-size) 0;
   border-color:transparent #6b4a2d transparent transparent;
 }
-
-/* V à droite */
 .tooltip.arrow-right::after{
   top:var(--arrow-y);
   transform:translateY(-50%);
-  right:-8px;
-  border-width:8px 0 8px 8px;
+  right:calc(var(--arrow-size) * -1);
+  border-width:var(--arrow-size) 0 var(--arrow-size) var(--arrow-size);
   border-color:transparent transparent transparent #6b4a2d;
 }
 
-/* =========================
-   CONTENU BULLE
-========================= */
-.tip-header{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:flex-start;
-}
+.tip-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .tip-title{font-weight:bold;}
 .tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95;}
-
-.tip-divider{
-  height:1px;
-  background:rgba(255,255,255,0.2);
-  margin:6px 0;
-}
-
-.tip-grid{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:4px 8px;
-  font-size:clamp(11px,2.8vw,13px);
-}
+.tip-divider{height:1px;background:rgba(255,255,255,.2);margin:6px 0;}
+.tip-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;font-size:clamp(11px,2.8vw,13px);}
 .k{opacity:.9;}
 .v{text-align:right;font-weight:bold;color:#fff2cf;}
-
-.tip-body{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-}
-
-.tip-nav{
-  margin-top:auto;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding-top:8px;
-  gap:10px;
-}
-
+.tip-body{flex:1;display:flex;flex-direction:column;min-height:0;}
+.tip-nav{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:8px;gap:10px;}
 .tip-btn{
   background:rgba(255,255,255,.15);
   border:1px solid rgba(255,255,255,.2);
-  color:#f5e6c8;
-  border-radius:8px;
+  color:#f5e6c8;border-radius:8px;
   padding:clamp(4px,2vw,6px) clamp(6px,3vw,9px);
   font-size:clamp(9px,2.6vw,10px);
-  cursor:pointer;
-  user-select:none;
+  cursor:pointer;user-select:none;line-height:1;
 }
 .tip-btn:disabled{opacity:.4;cursor:not-allowed;}
-.tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;}
+.tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;white-space:nowrap;}
+
+/* ✅ petite bulle “ticket RDD” */
+.tooltip.reward{
+  max-width: min(260px, 70vw);
+  font-size: 13px;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.tooltip.reward .tip-title{font-size:14px;}
+.tooltip.reward a{color:#fff2cf;font-weight:bold;text-decoration:underline;}
+.tooltip.reward a:hover{opacity:.9;}
+
+/* ✅ hotspot (petite zone cliquable sur le "A" de FEODALIS) */
+#feodalis-hotspot{
+  position:absolute;
+  left:83%;
+  top:31%;
+  width:18px;
+  height:18px;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  cursor:pointer;
+  pointer-events:auto;
+  /* invisible mais cliquable */
+  background:rgba(255,255,255,0);
+}
 </style>
 </head>
 
 <body>
-
 <div id="map-wrapper">
   <div id="map-container">
     <img id="map-image" src="carte.png" alt="Carte Feodalis">
     <div id="markers-layer">
 
-      <!-- EXEMPLE DE MARQUEUR -->
-      <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda">
-        <img src="Leda.png" alt="Léda">
-      </div>
+      <!-- ✅ HOTSPOT sur le "A" de FEODALIS -->
+      <div id="feodalis-hotspot" aria-label="Ticket RDD"></div>
 
-      <!-- ZONE CLIQUABLE MINUSCULE SUR LE "A" DU LOGO FEODALIS -->
-      <!-- Ajuste légèrement left/top si besoin -->
-      <div id="logo-hotspot" class="hotspot"
-           style="left:88.6%; top:11.2%; width:1.2%; height:1.8%;"></div>
+      <!-- MARQUEURS -->
+      <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
+      <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
+      <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
+      <div class="marker" style="left:11.62%; top:6.69%;" data-maison="Lombard"><img src="Lombard.png" alt="Lombard"></div>
+      <div class="marker" style="left:11.77%; top:35.99%;" data-maison="Givre-Bois"><img src="Givre-Bois.png" alt="Givre-Bois"></div>
+      <div class="marker" style="left:8.40%; top:48.97%;" data-maison="Montcristal"><img src="Montcristal.png" alt="Montcristal"></div>
+      <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda"><img src="Leda.png" alt="Léda"></div>
+      <div class="marker" style="left:30.81%; top:37.99%;" data-maison="Bellini"><img src="Bellini.png" alt="Bellini"></div>
+      <div class="marker" style="left:46.83%; top:4.49%;" data-maison="Contrevent"><img src="Contrevent.png" alt="Contrevent"></div>
+      <div class="marker" style="left:55.08%; top:23%;" data-maison="Clawthorne"><img src="Clawthorne.png" alt="Clawthorne"></div>
+      <div class="marker" style="left:57.76%; top:43.75%;" data-maison="Messny"><img src="Messny.png" alt="Messny"></div>
+      <div class="marker" style="left:58.59%; top:56.49%;" data-maison="Valor"><img src="Valor.png" alt="Valor"></div>
+      <div class="marker" style="left:60.99%; top:72.31%;" data-maison="Lebon"><img src="Lebon.png" alt="Lebon"></div>
+      <div class="marker" style="left:57.03%; top:83.74%;" data-maison="Taurmont"><img src="Taurmont.png" alt="Taurmont"></div>
+      <div class="marker" style="left:24.27%; top:88.48%;" data-maison="Astraghort"><img src="Astraghort.png" alt="Astraghort"></div>
+      <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
+      <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png" alt="Malty"></div>
+      <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png" alt="Heruli"></div>
+      <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
 
-      <!-- Bulle -->
       <div id="tooltip" class="tooltip"></div>
+      <div id="reward-tooltip" class="tooltip reward"></div>
     </div>
   </div>
 </div>
 
 <script>
-/* ======================================================
-   CONSTANTES DE POSITIONNEMENT
-   GAP = distance entre blason et bulle (réduite de moitié)
-   ARROW = taille du V (augmentée d’environ 30%)
-====================================================== */
-const ARROW = 8;   // anciennement 6
-const GAP   = 7;   // anciennement 14
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
+
+const tooltip = document.getElementById("tooltip");
+const rewardTooltip = document.getElementById("reward-tooltip");
+const map = document.getElementById("map-container");
+const rewardHotspot = document.getElementById("feodalis-hotspot");
+
+let rows = [];
+let dataReady = false;
+
+// header -> [indices...]
+let headerMap = {};
+
+let currentMarker=null, currentRow=null, currentPage=1;
+
+// ancrage + taille marqueur
+let anchor={x:0,y:0, halfW:0, halfH:0};
+
+let fixedTipW=null;
+let fixedTipH=null;
+
+const PAGES_TOTAL = 5;
+
+/* ✅ flèche +30% (aligné avec --arrow-size: 8px) */
+const ARROW = 8;
+
+/* ✅ distance bulle <-> blason réduite */
+const GAP = 8;
+
 const PADDING = 8;
 
-/* Lien secret (ticket RDD) */
-const SECRET_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ&start_radio=1";
-
-/* ======================================================
-   ÉLÉMENTS DOM
-====================================================== */
-const tooltip = document.getElementById("tooltip");
-const map = document.getElementById("map-container");
-const logoHotspot = document.getElementById("logo-hotspot");
-
-/* ======================================================
-   ANCRAGE ACTUEL DE LA BULLE
-====================================================== */
-let anchor = {x:0, y:0, halfW:0, halfH:0};
-
-/* ======================================================
-   POSITIONNEMENT
-====================================================== */
+function normalize(s){
+  return (s||"")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]/g,"");
+}
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-
-/* Calcule l’ancrage depuis un marqueur */
-function computeAnchorFromMarker(marker){
-  const m = marker.getBoundingClientRect();
-  const c = map.getBoundingClientRect();
-  anchor.x = (m.left - c.left) + m.width/2;
-  anchor.y = (m.top  - c.top ) + m.height/2;
-  anchor.halfW = m.width/2;
-  anchor.halfH = m.height/2;
+function isEmpty(v){ return v===undefined || v===null || String(v).trim()===""; }
+function safeText(v){ return isEmpty(v) ? "—" : String(v).trim(); }
+function safeNum(v){
+  if(isEmpty(v)) return "0";
+  const s = String(v).trim().replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? String(v).trim() : "0";
 }
 
-/* Calcule l’ancrage depuis le hotspot du A */
-function computeAnchorFromHotspot(el){
-  const r = el.getBoundingClientRect();
-  const c = map.getBoundingClientRect();
-  anchor.x = (r.left - c.left) + r.width/2;
-  anchor.y = (r.top  - c.top ) + r.height/2;
-  anchor.halfW = r.width/2;
-  anchor.halfH = r.height/2;
+// ✅ Majuscules (simple et sûr)
+function capWords(str){
+  const s = safeText(str);
+  if(s==="—") return s;
+  return s.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
 }
 
-/* Place la bulle correctement */
-function placeTooltip(){
-  const mapRect = map.getBoundingClientRect();
-
-  const markerTop = anchor.y - anchor.halfH;
-  const markerBot = anchor.y + anchor.halfH;
-
-  /* On préfère afficher au-dessus, sinon en dessous */
-  const canAbove = (markerTop - tooltip.offsetHeight - (ARROW+GAP)) >= PADDING;
-  const below = !canAbove;
-  tooltip.classList.toggle("below", below);
-
-  tooltip.classList.remove("arrow-left","arrow-right");
-
-  const minCenter = tooltip.offsetWidth/2 + PADDING;
-  const maxCenter = mapRect.width - tooltip.offsetWidth/2 - PADDING;
-
-  let baseX = clamp(anchor.x, minCenter, maxCenter);
-
-  let top = below
-    ? (markerBot + (ARROW+GAP))
-    : (markerTop - tooltip.offsetHeight - (ARROW+GAP));
-
-  tooltip.style.left = baseX + "px";
-  tooltip.style.top  = top + "px";
-  tooltip.style.display = "flex";
-
-  const visualLeft = baseX - tooltip.offsetWidth/2;
-  let arrowX = anchor.x - visualLeft;
-  arrowX = clamp(arrowX, 12, tooltip.offsetWidth - 12);
-  tooltip.style.setProperty("--arrow-x", arrowX + "px");
+function headerIdx(title, occ=0){
+  const arr = headerMap[normalize(title)];
+  if(!arr || arr.length===0) return undefined;
+  return arr[Math.min(occ, arr.length-1)];
+}
+function getCell(row, title, occ=0, fallbackIndex){
+  const idx = headerIdx(title, occ);
+  if(idx !== undefined) return row[idx];
+  if(fallbackIndex !== undefined) return row[fallbackIndex];
+  return "";
+}
+function findRowByMaison(maison){
+  const idxMaison = headerIdx("Maison", 0);
+  const col = (idxMaison !== undefined) ? idxMaison : 1;
+  const key = normalize(maison);
+  return rows.find(r => normalize(r[col]) === key) || null;
 }
 
-/* ======================================================
-   CONTENU DE LA BULLE
-====================================================== */
-function buildSecretTooltip(){
+fetch(SHEET_URL)
+  .then(r=>r.text())
+  .then(t=>{
+    let all = t.split("\n").map(l=>l.split("\t"));
+    all = all.filter(r => r.some(c => (c||"").trim() !== ""));
+    if(all.length < 2){ dataReady=false; return; }
+
+    const headers = all[0];
+    headerMap = {};
+    headers.forEach((h,i)=>{
+      const k = normalize(h);
+      if(!k) return;
+      if(!headerMap[k]) headerMap[k] = [];
+      headerMap[k].push(i);
+    });
+
+    rows = all.slice(1);
+    dataReady = true;
+  })
+  .catch(()=>{ dataReady=false; });
+
+function buildTooltip(row,page){
+  if(!dataReady) return "<b>Chargement…</b>";
+  if(!row) return "<b>Données absentes</b>";
+
+  // Textes
+  const royaume   = capWords(getCell(row, "Royaume", 0, 0));
+  const maison    = capWords(getCell(row, "Maison", 0, 1));
+  const joueur    = capWords(getCell(row, "Joueur", 0, 2));
+  const rang      = capWords(getCell(row, "Rang", 0, 3));
+  const lige      = capWords(getCell(row, "Seigneur lige", 0, 4));
+  const chefLieu  = capWords(getCell(row, "Chef-lieu", 0, 27));
+  const championT = capWords(getCell(row, "Champion", 0, 28));
+
+  // Num
+  const prestige  = safeNum(getCell(row, "Prestige", 0, 5));
+
+  const techMil   = safeNum(getCell(row, "tech. militaire", 0, 6));
+  const economie  = safeNum(getCell(row, "économie", 0, 7));
+  const fortif    = safeNum(getCell(row, "fortification", 0, 8));
+
+  // Champion = occurrence 0
+  const c_tranch  = safeNum(getCell(row, "tranchantes",   0, 9));
+  const c_cond    = safeNum(getCell(row, "condondantes",  0, 10));
+  const c_hast    = safeNum(getCell(row, "hast",          0, 11));
+  const c_proj    = safeNum(getCell(row, "projection",    0, 12)); // ✅ projection (pas de s)
+  const c_sens    = safeNum(getCell(row, "sens du combat",0, 13));
+
+  // Équipement
+  const e_maille  = safeNum(getCell(row, "côte de maille",0, 14));
+  const e_casque  = safeNum(getCell(row, "casque",        0, 15));
+  const e_boucl   = safeNum(getCell(row, "bouclier",      0, 16));
+  const e_plast   = safeNum(getCell(row, "plastron",      0, 17));
+  const e_gants   = safeNum(getCell(row, "gants",         0, 18));
+
+  // Armes = occurrence 1
+  const a_tranch  = safeNum(getCell(row, "tranchantes",  1, 23));
+  const a_cond    = safeNum(getCell(row, "condondantes", 1, 24));
+  const a_hast    = safeNum(getCell(row, "hast",         1, 25));
+  const a_proj    = safeNum(getCell(row, "projection",   1, 26));
+
+  let title="", body="";
+
+  if(page===1){
+    title="Infos";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Prestige</div><div class="v">${prestige}</div>
+        <div class="k">Royaume</div><div class="v">${royaume}</div>
+        <div class="k">Rang</div><div class="v">${rang}</div>
+        <div class="k">Seigneur lige</div><div class="v">${lige}</div>
+        <div class="k">Chef-lieu</div><div class="v">${chefLieu}</div>
+        <div class="k">Joueur</div><div class="v">${joueur}</div>
+      </div>`;
+  } else if(page===2){
+    title="Stats de la Maison";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Tech. militaire</div><div class="v">${techMil}</div>
+        <div class="k">Économie</div><div class="v">${economie}</div>
+        <div class="k">Fortification</div><div class="v">${fortif}</div>
+      </div>`;
+  } else if(page===3){
+    title="Compétences du champion";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Champion</div><div class="v">${championT}</div>
+        <div class="k">Tranchantes</div><div class="v">${c_tranch}</div>
+        <div class="k">Condondantes</div><div class="v">${c_cond}</div>
+        <div class="k">Hast</div><div class="v">${c_hast}</div>
+        <div class="k">Projection</div><div class="v">${c_proj}</div>
+        <div class="k">Sens du combat</div><div class="v">${c_sens}</div>
+      </div>`;
+  } else if(page===4){
+    title="Stats de l'Équipement";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Côte de maille</div><div class="v">${e_maille}</div>
+        <div class="k">Casque</div><div class="v">${e_casque}</div>
+        <div class="k">Bouclier</div><div class="v">${e_boucl}</div>
+        <div class="k">Plastron</div><div class="v">${e_plast}</div>
+        <div class="k">Gants</div><div class="v">${e_gants}</div>
+      </div>`;
+  } else {
+    title="Stats des Armes";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Tranchantes</div><div class="v">${a_tranch}</div>
+        <div class="k">Condondantes</div><div class="v">${a_cond}</div>
+        <div class="k">Hast</div><div class="v">${a_hast}</div>
+        <div class="k">Projection</div><div class="v">${a_proj}</div>
+      </div>`;
+  }
+
   return `
     <div class="tip-header">
       <div>
-        <div class="tip-title">Feodalis</div>
-        <div class="tip-sub">Ticket secret</div>
+        <div class="tip-title">${maison}</div>
+        <div class="tip-sub">${title}</div>
       </div>
+      <div class="tip-page">${page}/${PAGES_TOTAL}</div>
     </div>
     <div class="tip-divider"></div>
     <div class="tip-body">
-      <div style="line-height:1.3">
-        Bravo, tu as trouvé un ticket de la RDD.<br>
-        Pour le récupérer, 
-        <a href="${SECRET_LINK}" target="_blank" style="color:#fff2cf;text-decoration:underline">
-          clique ici
-        </a>.
+      ${body}
+      <div class="tip-nav">
+        <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
+        <div class="tip-page">${title}</div>
+        <button class="tip-btn" data-action="next" ${page===PAGES_TOTAL?"disabled":""}>▶</button>
       </div>
     </div>
   `;
 }
 
-/* ======================================================
-   INTERACTIONS
-====================================================== */
+/* ✅ bulle spéciale “ticket RDD” */
+function buildRewardTooltip(){
+  return `
+    <div class="tip-header">
+      <div>
+        <div class="tip-title">Bravo !</div>
+        <div class="tip-sub">Ticket RDD</div>
+      </div>
+    </div>
+    <div class="tip-divider"></div>
+    <div>
+      Bravo tu as gagné 1 ticket de la RDD, pour le récupérer clique
+      <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ&start_radio=1" target="_blank" rel="noopener noreferrer">ici</a>.
+    </div>
+  `;
+}
 
-/* Clic sur le A du logo */
-logoHotspot.addEventListener("click", e=>{
-  e.stopPropagation();
-  computeAnchorFromHotspot(logoHotspot);
-  tooltip.innerHTML = buildSecretTooltip();
-  tooltip.style.display = "flex";
+function computeAnchor(marker){
+  const m = marker.getBoundingClientRect();
+  const c = map.getBoundingClientRect();
+
+  const cx = (m.left - c.left) + m.width/2;
+  const cy = (m.top  - c.top)  + m.height/2;
+
+  anchor.x = cx;
+  anchor.y = cy;
+  anchor.halfW = m.width/2;
+  anchor.halfH = m.height/2;
+}
+
+function clearFixedSize(){
+  fixedTipW=null; fixedTipH=null;
+  tooltip.style.setProperty("--tip-w","auto");
+  tooltip.style.setProperty("--tip-h","auto");
+}
+function applyFixedSize(){
+  if(fixedTipW && fixedTipH){
+    tooltip.style.setProperty("--tip-w", fixedTipW + "px");
+    tooltip.style.setProperty("--tip-h", fixedTipH + "px");
+  }
+}
+function computeFixedSize(){
+  const mapRect = map.getBoundingClientRect();
+  clearFixedSize();
+  tooltip.style.display="flex";
+
+  let maxW=0, maxH=0;
+  for(let p=1;p<=PAGES_TOTAL;p++){
+    tooltip.innerHTML = buildTooltip(currentRow,p);
+    const r = tooltip.getBoundingClientRect();
+    if(r.width > maxW) maxW = r.width;
+    if(r.height> maxH) maxH = r.height;
+  }
+
+  const maxAllowedW = mapRect.width - PADDING*2;
+  fixedTipW = Math.min(maxW, maxAllowedW);
+  fixedTipH = maxH;
+
+  applyFixedSize();
+}
+
+function placeTooltip(){
+  const mapRect = map.getBoundingClientRect();
+  applyFixedSize();
+
+  const markerTop = anchor.y - anchor.halfH;
+  const markerBot = anchor.y + anchor.halfH;
+
+  const canAbove = (markerTop - fixedTipH - (ARROW+GAP)) >= PADDING;
+  const below = !canAbove;
+  tooltip.classList.toggle("below", below);
+
+  tooltip.classList.remove("arrow-left","arrow-right");
+
+  const minCenter = fixedTipW/2 + PADDING;
+  const maxCenter = mapRect.width - fixedTipW/2 - PADDING;
+
+  const leftNeed  = anchor.x - anchor.halfW - (ARROW+GAP) < (fixedTipW/2 + PADDING);
+  const rightNeed = anchor.x + anchor.halfW + (ARROW+GAP) > (mapRect.width - fixedTipW/2 - PADDING);
+
+  let baseX;
+
+  if(leftNeed && !rightNeed){
+    tooltip.classList.add("arrow-left");
+    baseX = clamp(anchor.x + anchor.halfW + (ARROW+GAP) + fixedTipW/2, minCenter, maxCenter);
+  } else if(rightNeed && !leftNeed){
+    tooltip.classList.add("arrow-right");
+    baseX = clamp(anchor.x - anchor.halfW - (ARROW+GAP) - fixedTipW/2, minCenter, maxCenter);
+  } else {
+    baseX = clamp(anchor.x, minCenter, maxCenter);
+  }
+
+  let top = below
+    ? (markerBot + (ARROW+GAP))
+    : (markerTop - fixedTipH - (ARROW+GAP));
+
+  top = clamp(top, PADDING, mapRect.height - fixedTipH - PADDING);
+
+  tooltip.style.left = baseX + "px";
+  tooltip.style.top  = top + "px";
+  tooltip.style.display="flex";
+
+  if(tooltip.classList.contains("arrow-left") || tooltip.classList.contains("arrow-right")){
+    let arrowY = anchor.y - top;
+    arrowY = clamp(arrowY, 14, fixedTipH - 14);
+    tooltip.style.setProperty("--arrow-y", arrowY + "px");
+  } else {
+    const visualLeft = baseX - fixedTipW/2;
+    let arrowX = anchor.x - visualLeft;
+    arrowX = clamp(arrowX, 12, fixedTipW - 12);
+    tooltip.style.setProperty("--arrow-x", arrowX + "px");
+  }
+}
+
+function renderPage(){
+  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+  applyFixedSize();
   placeTooltip();
+}
+
+function openFor(marker){
+  closeRewardTooltip();
+
+  currentMarker = marker;
+  currentPage = 1;
+  currentRow = findRowByMaison(marker.dataset.maison);
+
+  computeAnchor(marker);
+
+  tooltip.innerHTML = buildTooltip(currentRow, 1);
+  tooltip.style.display="flex";
+
+  computeFixedSize();
+  renderPage();
+}
+
+function closeTooltip(){
+  tooltip.style.display="none";
+  currentMarker=null;
+  currentRow=null;
+  currentPage=1;
+  clearFixedSize();
+}
+
+/* ✅ Reward tooltip (petit) */
+let rewardOpen = false;
+
+function placeRewardTooltip(){
+  const mapRect = map.getBoundingClientRect();
+
+  const r = rewardTooltip.getBoundingClientRect();
+  const tipW = r.width;
+  const tipH = r.height;
+
+  const markerTop = anchor.y - anchor.halfH;
+  const markerBot = anchor.y + anchor.halfH;
+
+  const canAbove = (markerTop - tipH - (ARROW+GAP)) >= PADDING;
+  const below = !canAbove;
+
+  rewardTooltip.classList.toggle("below", below);
+  rewardTooltip.classList.remove("arrow-left","arrow-right");
+
+  const minCenter = tipW/2 + PADDING;
+  const maxCenter = mapRect.width - tipW/2 - PADDING;
+  const baseX = clamp(anchor.x, minCenter, maxCenter);
+
+  let top = below
+    ? (markerBot + (ARROW+GAP))
+    : (markerTop - tipH - (ARROW+GAP));
+
+  top = clamp(top, PADDING, mapRect.height - tipH - PADDING);
+
+  rewardTooltip.style.left = baseX + "px";
+  rewardTooltip.style.top  = top + "px";
+  rewardTooltip.style.display="flex";
+
+  const visualLeft = baseX - tipW/2;
+  let arrowX = anchor.x - visualLeft;
+  arrowX = clamp(arrowX, 12, tipW - 12);
+  rewardTooltip.style.setProperty("--arrow-x", arrowX + "px");
+}
+
+function openRewardTooltip(){
+  closeTooltip();
+
+  rewardTooltip.innerHTML = buildRewardTooltip();
+  rewardTooltip.style.display="flex";
+
+  computeAnchor(rewardHotspot);
+  rewardOpen = true;
+
+  // placer après mesure
+  requestAnimationFrame(placeRewardTooltip);
+}
+
+function closeRewardTooltip(){
+  rewardTooltip.style.display="none";
+  rewardOpen = false;
+}
+
+tooltip.addEventListener("click", e => e.stopPropagation());
+rewardTooltip.addEventListener("click", e => e.stopPropagation());
+
+tooltip.addEventListener("click", e => {
+  const btn = e.target.closest("[data-action]");
+  if(!btn) return;
+
+  if(btn.dataset.action==="prev" && currentPage>1) currentPage--;
+  if(btn.dataset.action==="next" && currentPage<PAGES_TOTAL) currentPage++;
+
+  renderPage();
 });
 
-/* Fermer la bulle si on clique ailleurs */
+document.querySelectorAll(".marker").forEach(m=>{
+  m.addEventListener("click", e=>{
+    e.stopPropagation();
+    if(currentMarker===m) closeTooltip();
+    else openFor(m);
+  });
+});
+
+/* ✅ clic sur le “A” */
+rewardHotspot.addEventListener("click", (e)=>{
+  e.stopPropagation();
+  if(rewardOpen) closeRewardTooltip();
+  else openRewardTooltip();
+});
+
 document.addEventListener("click", ()=>{
-  tooltip.style.display = "none";
+  closeTooltip();
+  closeRewardTooltip();
 });
-</script>
 
+function repositionIfOpen(){
+  if(currentMarker && tooltip.style.display==="flex"){
+    computeAnchor(currentMarker);
+    placeTooltip();
+  }
+  if(rewardOpen && rewardTooltip.style.display==="flex"){
+    computeAnchor(rewardHotspot);
+    placeRewardTooltip();
+  }
+}
+
+window.addEventListener("resize", ()=>{
+  if(currentMarker){
+    computeAnchor(currentMarker);
+    computeFixedSize();
+    renderPage();
+  }
+  if(rewardOpen){
+    computeAnchor(rewardHotspot);
+    requestAnimationFrame(placeRewardTooltip);
+  }
+});
+
+window.addEventListener("scroll", repositionIfOpen, {passive:true});
+</script>
 </body>
 </html>
