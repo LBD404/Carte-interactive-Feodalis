@@ -39,7 +39,7 @@ html,body{
   pointer-events:none;
 }
 
-/* blasons responsive */
+/* blasons */
 .marker{
   position:absolute;
   width:clamp(28px,6vw,90px);
@@ -67,12 +67,15 @@ html,body{
   z-index:999;
   display:none;
   pointer-events:auto;
-  --arrow-x:50%;
   overflow-wrap:anywhere;
   word-break:break-word;
-}
+  --arrow-x: 50%;
 
-.tooltip *{pointer-events:auto;}
+  /* ✅ même taille pour toutes les pages (appliquée via JS) */
+  width: var(--tip-w, auto);
+  height: var(--tip-h, auto);
+  box-sizing:border-box;
+}
 
 .tooltip::after{
   content:"";
@@ -81,13 +84,11 @@ html,body{
   transform:translateX(-50%);
   border-style:solid;
 }
-
 .tooltip:not(.below)::after{
   bottom:-6px;
   border-width:6px 6px 0 6px;
   border-color:#6b4a2d transparent transparent transparent;
 }
-
 .tooltip.below::after{
   top:-6px;
   border-width:0 6px 6px 6px;
@@ -137,18 +138,7 @@ html,body{
   line-height:1;
 }
 .tip-btn:disabled{opacity:.4;cursor:not-allowed;}
-
-.tip-page{
-  font-size:clamp(10px,2.6vw,12px);
-  opacity:.9;
-  white-space:nowrap;
-}
-
-@media (max-width:640px){
-  .tooltip{
-    max-width:82vw; /* plus compact mobile */
-  }
-}
+.tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;white-space:nowrap;}
 </style>
 </head>
 
@@ -159,7 +149,7 @@ html,body{
     <img id="map-image" src="carte.png" alt="Carte Feodalis">
     <div id="markers-layer">
 
-      <!-- marqueurs -->
+      <!-- MARQUEURS -->
       <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
       <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
       <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
@@ -189,23 +179,28 @@ html,body{
 const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
 /*
-Index 0-based :
-A=0, B=1, C=2, D=3, E=4, ... G=6,H=7,I=8, J=9..N=13
-AB = 27
-AC = 28
+A=0, B=1, C=2, D=3, E=4
+G=6 H=7 I=8
+J..N=9..13
+AB=27
+AC=28
 */
 
-let data=[];
-let dataReady=false;
+let data=[], dataReady=false;
 
 let currentMarker=null, currentRow=null, currentPage=1;
 let anchor={x:0,y:0};
-let layoutMode="above"; // stable across pages
-let baseX=0; // tooltip center x clamped
+let layoutMode="above";
+let baseX=0;
+
+let fixedTipW=null;
+let fixedTipH=null;
 
 function normalize(s){
   return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 }
+function safe(v){ return (v===undefined||v===null||v==="")?"—":v; }
+function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
 
 fetch(SHEET_URL)
   .then(r=>r.text())
@@ -218,45 +213,44 @@ fetch(SHEET_URL)
 const tooltip=document.getElementById("tooltip");
 const map=document.getElementById("map-container");
 
-function safe(v){ return (v===undefined || v===null || v==="") ? "—" : v; }
-
 function buildTooltip(row,page){
   if(!dataReady) return "<b>Chargement…</b>";
   if(!row) return "<b>Données absentes</b>";
 
-  const royaume = safe(row[0]);
-  const maison  = safe(row[1]);
-  const joueur  = safe(row[2]);   // C
-  const rang    = safe(row[3]);   // D
-  const lige    = safe(row[4]);   // E
+  const royaume=safe(row[0]);
+  const maison=safe(row[1]);
+  const joueur=safe(row[2]);
+  const rang=safe(row[3]);
+  const lige=safe(row[4]);
+  const chefLieu=safe(row[27]);
+  const champion=safe(row[28]);
 
-  const chefLieu = safe(row[27]); // AB
-  const champion = safe(row[28]); // AC
+  const g=safe(row[6]), h=safe(row[7]), i=safe(row[8]);
+  const j=safe(row[9]), k=safe(row[10]), l=safe(row[11]), m=safe(row[12]), n=safe(row[13]);
 
-  const g = safe(row[6]), h = safe(row[7]), i = safe(row[8]);
-  const j = safe(row[9]), k = safe(row[10]), l = safe(row[11]), m = safe(row[12]), n = safe(row[13]);
+  let body="", title="";
 
-  let body = "";
   if(page===1){
-    body = `
+    title="Infos";
+    body=`
       <div class="tip-grid">
         <div class="k">Royaume</div><div class="v">${royaume}</div>
         <div class="k">Rang</div><div class="v">${rang}</div>
         <div class="k">Seigneur lige</div><div class="v">${lige}</div>
         <div class="k">Chef-lieu</div><div class="v">${chefLieu}</div>
         <div class="k">Joueur</div><div class="v">${joueur}</div>
-      </div>
-    `;
+      </div>`;
   } else if(page===2){
-    body = `
+    title="Stats de maison";
+    body=`
       <div class="tip-grid">
         <div class="k">Tech. militaire</div><div class="v">${g}</div>
         <div class="k">Économie</div><div class="v">${h}</div>
         <div class="k">Fortification</div><div class="v">${i}</div>
-      </div>
-    `;
+      </div>`;
   } else {
-    body = `
+    title="Stats de champion";
+    body=`
       <div class="tip-grid">
         <div class="k">Champion</div><div class="v">${champion}</div>
         <div class="k">Armes tranchantes</div><div class="v">${j}</div>
@@ -264,11 +258,8 @@ function buildTooltip(row,page){
         <div class="k">Armes d’hast</div><div class="v">${l}</div>
         <div class="k">Arme de projection</div><div class="v">${m}</div>
         <div class="k">Sens du combat</div><div class="v">${n}</div>
-      </div>
-    `;
+      </div>`;
   }
-
-  const title = (page===1) ? "Infos" : (page===2 ? "Stats de maison" : "Stats de champion");
 
   return `
     <div class="tip-header">
@@ -284,69 +275,82 @@ function buildTooltip(row,page){
       <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
       <div class="tip-page">${title}</div>
       <button class="tip-btn" data-action="next" ${page===3?"disabled":""}>▶</button>
-    </div>
-  `;
+    </div>`;
 }
-
-function clamp(v,min,max){ return Math.max(min, Math.min(max,v)); }
 
 function computeAnchor(marker){
   const m=marker.getBoundingClientRect();
   const c=map.getBoundingClientRect();
-  anchor.x = (m.left - c.left) + m.width/2;
-  anchor.y = (m.top  - c.top)  + m.height; // bas du blason (point du V)
+  anchor.x=(m.left-c.left)+m.width/2;
+  anchor.y=(m.top-c.top)+m.height;
 }
 
-function computeStableLayoutAndBaseX(){
-  const mapRect = map.getBoundingClientRect();
-  const paddingX = 8;
-  const paddingY = 8;
+function clearFixedSize(){
+  fixedTipW=null; fixedTipH=null;
+  tooltip.style.setProperty("--tip-w","auto");
+  tooltip.style.setProperty("--tip-h","auto");
+}
 
-  // Mesure max hauteur sur 3 pages (pour éviter page1 au-dessus et page3 en dessous)
-  let maxH = 0;
-  const saved = tooltip.innerHTML;
+function applyFixedSize(){
+  if(fixedTipW && fixedTipH){
+    tooltip.style.setProperty("--tip-w", fixedTipW + "px");
+    tooltip.style.setProperty("--tip-h", fixedTipH + "px");
+  }
+}
 
+function computeFixedSizeAndLayout(){
+  const mapRect=map.getBoundingClientRect();
+  const padding=8;
+  const gap=10;
+
+  // reset size for accurate measure
+  clearFixedSize();
   tooltip.style.display="block";
-  tooltip.classList.remove("below");
 
+  // measure pages for max width/height
+  let maxW=0, maxH=0;
   for(let p=1;p<=3;p++){
-    tooltip.innerHTML = buildTooltip(currentRow,p);
-    const r = tooltip.getBoundingClientRect();
-    if(r.height > maxH) maxH = r.height;
+    tooltip.innerHTML=buildTooltip(currentRow,p);
+    const r=tooltip.getBoundingClientRect();
+    if(r.width>maxW) maxW=r.width;
+    if(r.height>maxH) maxH=r.height;
   }
 
-  tooltip.innerHTML = saved;
+  // limit width to map width (avoid overflow)
+  const maxAllowedW = mapRect.width - padding*2;
+  fixedTipW = Math.min(maxW, maxAllowedW);
+  fixedTipH = maxH;
 
-  // Base X clampé (centre de la bulle)
-  // On prend la largeur de la page courante (la plus proche du rendu) pour clampler correctement
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  const tipRectNow = tooltip.getBoundingClientRect();
-  baseX = clamp(anchor.x, tipRectNow.width/2 + paddingX, mapRect.width - tipRectNow.width/2 - paddingX);
+  applyFixedSize();
 
-  const gap = 10;
-  layoutMode = (anchor.y - maxH - gap < paddingY) ? "below" : "above";
+  // decide above/below using max height (stable for all pages)
+  layoutMode = (anchor.y - fixedTipH - gap < padding) ? "below" : "above";
+
+  // compute baseX with fixed width
+  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
 }
 
 function placeTooltip(){
-  const mapRect = map.getBoundingClientRect();
-  const tipRect = tooltip.getBoundingClientRect();
-  const gap = 10;
-  const paddingX = 8;
-  const paddingY = 8;
+  const mapRect=map.getBoundingClientRect();
+  const padding=8;
+  const gap=10;
 
-  // Re-clamp X selon largeur réelle de la page affichée
-  baseX = clamp(baseX, tipRect.width/2 + paddingX, mapRect.width - tipRect.width/2 - paddingX);
+  // Ensure we have fixed size applied
+  applyFixedSize();
 
-  let top = (layoutMode==="below")
-    ? (anchor.y + gap)
-    : (anchor.y - tipRect.height - gap);
+  // Clamp X with fixed width
+  baseX = clamp(baseX, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
 
-  top = clamp(top, paddingY, mapRect.height - tipRect.height - paddingY);
+  // Use fixed height for stable placement
+  let top = (layoutMode==="below") ? (anchor.y + gap) : (anchor.y - fixedTipH - gap);
 
-  // Arrow X pour pointer l'ancre même si la bulle est poussée vers le bord
-  const left = baseX - tipRect.width/2;
+  // Clamp vertically to keep inside map (no overflow)
+  top = clamp(top, padding, mapRect.height - fixedTipH - padding);
+
+  // Arrow alignment
+  const left = baseX - fixedTipW/2;
   let arrowX = anchor.x - left;
-  arrowX = clamp(arrowX, 14, tipRect.width - 14);
+  arrowX = clamp(arrowX, 12, fixedTipW - 12);
   tooltip.style.setProperty("--arrow-x", arrowX + "px");
 
   tooltip.classList.toggle("below", layoutMode==="below");
@@ -355,30 +359,26 @@ function placeTooltip(){
   tooltip.style.display="block";
 }
 
+function renderPage(){
+  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+  applyFixedSize();
+  placeTooltip();
+}
+
 function openFor(marker){
-  currentMarker = marker;
-  currentPage = 1;
+  currentMarker=marker;
+  currentPage=1;
 
-  if(!dataReady){
-    currentRow = null;
-    tooltip.innerHTML = "<b>Chargement…</b>";
-    computeAnchor(marker);
-    layoutMode = "below";
-    baseX = anchor.x;
-    placeTooltip();
-    return;
-  }
-
-  const key = normalize(marker.dataset.maison);
-  currentRow = data.find(r => normalize(r[1]) === key) || null;
+  const key=normalize(marker.dataset.maison);
+  currentRow=data.find(r=>normalize(r[1])===key) || null;
 
   computeAnchor(marker);
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  tooltip.style.display="block";
 
-  computeStableLayoutAndBaseX();
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltip();
+  // compute fixed size + layout once per marker open
+  tooltip.innerHTML = buildTooltip(currentRow, 1);
+  tooltip.style.display="block";
+  computeFixedSizeAndLayout();
+  renderPage();
 }
 
 function closeTooltip(){
@@ -386,24 +386,23 @@ function closeTooltip(){
   currentMarker=null;
   currentRow=null;
   currentPage=1;
+  clearFixedSize();
 }
 
-tooltip.addEventListener("click", (e)=>{ e.stopPropagation(); });
+tooltip.addEventListener("click", e => e.stopPropagation());
 
-tooltip.addEventListener("click", (e)=>{
+tooltip.addEventListener("click", e => {
   const btn = e.target.closest("[data-action]");
   if(!btn) return;
 
-  const action = btn.getAttribute("data-action");
-  if(action==="prev" && currentPage>1) currentPage--;
-  if(action==="next" && currentPage<3) currentPage++;
+  if(btn.dataset.action==="prev" && currentPage>1) currentPage--;
+  if(btn.dataset.action==="next" && currentPage<3) currentPage++;
 
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  placeTooltip();
+  renderPage();
 });
 
 document.querySelectorAll(".marker").forEach(m=>{
-  m.addEventListener("click",(e)=>{
+  m.addEventListener("click", e=>{
     e.stopPropagation();
     if(currentMarker===m) closeTooltip();
     else openFor(m);
@@ -415,13 +414,18 @@ document.addEventListener("click", ()=> closeTooltip());
 function repositionIfOpen(){
   if(currentMarker && tooltip.style.display==="block"){
     computeAnchor(currentMarker);
-    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-    computeStableLayoutAndBaseX();
-    tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+    // keep same fixed size, just reposition + arrow
     placeTooltip();
   }
 }
-window.addEventListener("resize", repositionIfOpen);
+window.addEventListener("resize", ()=>{
+  if(currentMarker){
+    // on resize, recompute fixed size with new map width
+    computeAnchor(currentMarker);
+    computeFixedSizeAndLayout();
+    renderPage();
+  }
+});
 window.addEventListener("scroll", repositionIfOpen, {passive:true});
 </script>
 
