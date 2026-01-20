@@ -71,17 +71,16 @@ html,body{
   word-break:break-word;
   --arrow-x: 50%;
 
-  /* ✅ même taille pour toutes les pages (appliquée via JS) */
+  /* taille fixe calculée */
   width: var(--tip-w, auto);
   height: var(--tip-h, auto);
   box-sizing:border-box;
 
-  /* ✅ ancrage des éléments : nav en bas */
+  /* ✅ nav ancrée en bas */
   display:flex;
   flex-direction:column;
 }
 
-/* V */
 .tooltip::after{
   content:"";
   position:absolute;
@@ -109,17 +108,11 @@ html,body{
 }
 .tip-title{font-weight:bold;}
 .tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95;}
-
 .tip-divider{
   height:1px;
   background:rgba(255,255,255,0.2);
   margin:6px 0;
 }
-
-.tip-body{
-  /* zone qui peut varier en hauteur */
-}
-
 .tip-grid{
   display:grid;
   grid-template-columns:auto 1fr;
@@ -129,14 +122,21 @@ html,body{
 .k{opacity:.9;}
 .v{text-align:right;font-weight:bold;color:#fff2cf;}
 
-/* nav en bas (toujours) */
+/* ✅ zone contenu flexible (pousse la nav en bas) */
+.tip-body{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+/* nav */
 .tip-nav{
-  margin-top:auto;                 /* ✅ pousse en bas */
+  margin-top:auto;
   display:flex;
   justify-content:space-between;
   align-items:center;
+  padding-top:8px;
   gap:10px;
-  padding-top:10px;
 }
 
 .tip-btn{
@@ -242,6 +242,7 @@ function buildTooltip(row,page){
   const j=safe(row[9]), k=safe(row[10]), l=safe(row[11]), m=safe(row[12]), n=safe(row[13]);
 
   let body="", title="";
+
   if(page===1){
     title="Infos";
     body=`
@@ -282,12 +283,15 @@ function buildTooltip(row,page){
       <div class="tip-page">${page}/3</div>
     </div>
     <div class="tip-divider"></div>
-    <div class="tip-body">${body}</div>
-    <div class="tip-nav">
-      <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
-      <div class="tip-page">${title}</div>
-      <button class="tip-btn" data-action="next" ${page===3?"disabled":""}>▶</button>
-    </div>`;
+    <div class="tip-body">
+      ${body}
+      <div class="tip-nav">
+        <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
+        <div class="tip-page">${title}</div>
+        <button class="tip-btn" data-action="next" ${page===3?"disabled":""}>▶</button>
+      </div>
+    </div>
+  `;
 }
 
 function computeAnchor(marker){
@@ -318,7 +322,6 @@ function computeFixedSizeAndLayout(){
   clearFixedSize();
   tooltip.style.display="block";
 
-  // mesure maxW/maxH sur les 3 pages
   let maxW=0, maxH=0;
   for(let p=1;p<=3;p++){
     tooltip.innerHTML=buildTooltip(currentRow,p);
@@ -327,24 +330,15 @@ function computeFixedSizeAndLayout(){
     if(r.height>maxH) maxH=r.height;
   }
 
-  // limite largeur (anti débord)
   const maxAllowedW = mapRect.width - padding*2;
   fixedTipW = Math.min(maxW, maxAllowedW);
   fixedTipH = maxH;
 
   applyFixedSize();
 
-  // stable above/below basé sur plus grande hauteur
   layoutMode = (anchor.y - fixedTipH - gap < padding) ? "below" : "above";
 
-  // ✅ centré si possible, sinon clamp
-  const minX = fixedTipW/2 + padding;
-  const maxX = mapRect.width - fixedTipW/2 - padding;
-  if(anchor.x >= minX && anchor.x <= maxX){
-    baseX = anchor.x;           // centre parfait
-  }else{
-    baseX = clamp(anchor.x, minX, maxX);
-  }
+  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
 }
 
 function placeTooltip(){
@@ -354,15 +348,12 @@ function placeTooltip(){
 
   applyFixedSize();
 
-  // ✅ re-centre si possible à chaque place
-  const minX = fixedTipW/2 + padding;
-  const maxX = mapRect.width - fixedTipW/2 - padding;
-  baseX = (anchor.x >= minX && anchor.x <= maxX) ? anchor.x : clamp(anchor.x, minX, maxX);
+  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
 
   let top = (layoutMode==="below") ? (anchor.y + gap) : (anchor.y - fixedTipH - gap);
   top = clamp(top, padding, mapRect.height - fixedTipH - padding);
 
-  // V aligné au blason
+  // ✅ V toujours centré sur le blason
   const left = baseX - fixedTipW/2;
   let arrowX = anchor.x - left;
   arrowX = clamp(arrowX, 12, fixedTipW - 12);
@@ -391,6 +382,7 @@ function openFor(marker){
 
   tooltip.innerHTML = buildTooltip(currentRow, 1);
   tooltip.style.display="block";
+
   computeFixedSizeAndLayout();
   renderPage();
 }
