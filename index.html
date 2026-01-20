@@ -48,7 +48,6 @@ html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif;}
   --arrow-x:50%;
   --arrow-y:50%;
 }
-
 .tooltip::after{content:"";position:absolute;border-style:solid;}
 
 .tooltip:not(.below):not(.arrow-left):not(.arrow-right)::after{
@@ -88,25 +87,14 @@ html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif;}
 .k{opacity:.9;}
 .v{text-align:right;font-weight:bold;color:#fff2cf;}
 .tip-body{flex:1;display:flex;flex-direction:column;min-height:0;}
-
-.tip-nav{
-  margin-top:auto;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding-top:8px;
-  gap:10px;
-}
+.tip-nav{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:8px;gap:10px;}
 .tip-btn{
   background:rgba(255,255,255,.15);
   border:1px solid rgba(255,255,255,.2);
-  color:#f5e6c8;
-  border-radius:8px;
+  color:#f5e6c8;border-radius:8px;
   padding:clamp(4px,2vw,6px) clamp(6px,3vw,9px);
   font-size:clamp(9px,2.6vw,10px);
-  cursor:pointer;
-  user-select:none;
-  line-height:1;
+  cursor:pointer;user-select:none;line-height:1;
 }
 .tip-btn:disabled{opacity:.4;cursor:not-allowed;}
 .tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;white-space:nowrap;}
@@ -158,16 +146,16 @@ let dataReady = false;
 let headerMap = {};
 
 let currentMarker=null, currentRow=null, currentPage=1;
-let anchor={x:0,y:0};
+
+// ancrage + taille marqueur
+let anchor={x:0,y:0, halfW:0, halfH:0};
 
 let fixedTipW=null;
 let fixedTipH=null;
 
 const PAGES_TOTAL = 5;
-
-// triangle + espace visuel
 const ARROW = 6;
-const GAP = 10;
+const GAP = 14;      // ✅ un peu plus pour être sûr de ne pas recouvrir le blason
 const PADDING = 8;
 
 function normalize(s){
@@ -184,6 +172,13 @@ function safeNum(v){
   const s = String(v).trim().replace(",", ".");
   const n = Number(s);
   return Number.isFinite(n) ? String(v).trim() : "0";
+}
+
+// ✅ Majuscules (simple et sûr)
+function capWords(str){
+  const s = safeText(str);
+  if(s==="—") return s;
+  return s.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
 }
 
 function headerIdx(title, occ=0){
@@ -212,7 +207,6 @@ fetch(SHEET_URL)
     if(all.length < 2){ dataReady=false; return; }
 
     const headers = all[0];
-
     headerMap = {};
     headers.forEach((h,i)=>{
       const k = normalize(h);
@@ -230,14 +224,16 @@ function buildTooltip(row,page){
   if(!dataReady) return "<b>Chargement…</b>";
   if(!row) return "<b>Données absentes</b>";
 
-  const royaume   = safeText(getCell(row, "Royaume", 0, 0));
-  const maison    = safeText(getCell(row, "Maison", 0, 1));
-  const joueur    = safeText(getCell(row, "Joueur", 0, 2));
-  const rang      = safeText(getCell(row, "Rang", 0, 3));
-  const lige      = safeText(getCell(row, "Seigneur lige", 0, 4));
-  const chefLieu  = safeText(getCell(row, "Chef-lieu", 0, 27));
-  const championT = safeText(getCell(row, "Champion", 0, 28));
+  // Textes
+  const royaume   = capWords(getCell(row, "Royaume", 0, 0));
+  const maison    = capWords(getCell(row, "Maison", 0, 1));
+  const joueur    = capWords(getCell(row, "Joueur", 0, 2));
+  const rang      = capWords(getCell(row, "Rang", 0, 3));
+  const lige      = capWords(getCell(row, "Seigneur lige", 0, 4));
+  const chefLieu  = capWords(getCell(row, "Chef-lieu", 0, 27));
+  const championT = capWords(getCell(row, "Champion", 0, 28));
 
+  // Num
   const prestige  = safeNum(getCell(row, "Prestige", 0, 5));
 
   const techMil   = safeNum(getCell(row, "tech. militaire", 0, 6));
@@ -248,10 +244,10 @@ function buildTooltip(row,page){
   const c_tranch  = safeNum(getCell(row, "tranchantes",   0, 9));
   const c_cond    = safeNum(getCell(row, "condondantes",  0, 10));
   const c_hast    = safeNum(getCell(row, "hast",          0, 11));
-  const c_proj    = safeNum(getCell(row, "projection",    0, 12));
+  const c_proj    = safeNum(getCell(row, "projection",    0, 12)); // ✅ projection (pas de s)
   const c_sens    = safeNum(getCell(row, "sens du combat",0, 13));
 
-  // Equipement
+  // Équipement
   const e_maille  = safeNum(getCell(row, "côte de maille",0, 14));
   const e_casque  = safeNum(getCell(row, "casque",        0, 15));
   const e_boucl   = safeNum(getCell(row, "bouclier",      0, 16));
@@ -281,39 +277,39 @@ function buildTooltip(row,page){
     title="Stats de la Maison";
     body=`
       <div class="tip-grid">
-        <div class="k">tech. militaire</div><div class="v">${techMil}</div>
-        <div class="k">économie</div><div class="v">${economie}</div>
-        <div class="k">fortification</div><div class="v">${fortif}</div>
+        <div class="k">Tech. militaire</div><div class="v">${techMil}</div>
+        <div class="k">Économie</div><div class="v">${economie}</div>
+        <div class="k">Fortification</div><div class="v">${fortif}</div>
       </div>`;
   } else if(page===3){
     title="Compétences du champion";
     body=`
       <div class="tip-grid">
         <div class="k">Champion</div><div class="v">${championT}</div>
-        <div class="k">tranchantes</div><div class="v">${c_tranch}</div>
-        <div class="k">condondantes</div><div class="v">${c_cond}</div>
-        <div class="k">hast</div><div class="v">${c_hast}</div>
-        <div class="k">projection</div><div class="v">${c_proj}</div>
-        <div class="k">sens du combat</div><div class="v">${c_sens}</div>
+        <div class="k">Tranchantes</div><div class="v">${c_tranch}</div>
+        <div class="k">Condondantes</div><div class="v">${c_cond}</div>
+        <div class="k">Hast</div><div class="v">${c_hast}</div>
+        <div class="k">Projection</div><div class="v">${c_proj}</div>
+        <div class="k">Sens du combat</div><div class="v">${c_sens}</div>
       </div>`;
   } else if(page===4){
     title="Stats de l'Équipement";
     body=`
       <div class="tip-grid">
-        <div class="k">côte de maille</div><div class="v">${e_maille}</div>
-        <div class="k">casque</div><div class="v">${e_casque}</div>
-        <div class="k">bouclier</div><div class="v">${e_boucl}</div>
-        <div class="k">plastron</div><div class="v">${e_plast}</div>
-        <div class="k">gants</div><div class="v">${e_gants}</div>
+        <div class="k">Côte de maille</div><div class="v">${e_maille}</div>
+        <div class="k">Casque</div><div class="v">${e_casque}</div>
+        <div class="k">Bouclier</div><div class="v">${e_boucl}</div>
+        <div class="k">Plastron</div><div class="v">${e_plast}</div>
+        <div class="k">Gants</div><div class="v">${e_gants}</div>
       </div>`;
   } else {
-    title="Armes";
+    title="Stats des Armes";
     body=`
       <div class="tip-grid">
-        <div class="k">tranchantes</div><div class="v">${a_tranch}</div>
-        <div class="k">condondantes</div><div class="v">${a_cond}</div>
-        <div class="k">hast</div><div class="v">${a_hast}</div>
-        <div class="k">projection</div><div class="v">${a_proj}</div>
+        <div class="k">Tranchantes</div><div class="v">${a_tranch}</div>
+        <div class="k">Condondantes</div><div class="v">${a_cond}</div>
+        <div class="k">Hast</div><div class="v">${a_hast}</div>
+        <div class="k">Projection</div><div class="v">${a_proj}</div>
       </div>`;
   }
 
@@ -340,8 +336,14 @@ function buildTooltip(row,page){
 function computeAnchor(marker){
   const m = marker.getBoundingClientRect();
   const c = map.getBoundingClientRect();
-  anchor.x = (m.left - c.left) + m.width/2;
-  anchor.y = (m.top  - c.top)  + m.height;
+
+  const cx = (m.left - c.left) + m.width/2;
+  const cy = (m.top  - c.top)  + m.height/2;
+
+  anchor.x = cx;
+  anchor.y = cy;
+  anchor.halfW = m.width/2;
+  anchor.halfH = m.height/2;
 }
 
 function clearFixedSize(){
@@ -357,7 +359,6 @@ function applyFixedSize(){
 }
 function computeFixedSize(){
   const mapRect = map.getBoundingClientRect();
-
   clearFixedSize();
   tooltip.style.display="flex";
 
@@ -380,7 +381,11 @@ function placeTooltip(){
   const mapRect = map.getBoundingClientRect();
   applyFixedSize();
 
-  const canAbove = (anchor.y - fixedTipH - (ARROW+GAP)) >= PADDING;
+  // ✅ ancrage haut/bas basé sur le marqueur (pas sur un point approximatif)
+  const markerTop = anchor.y - anchor.halfH;
+  const markerBot = anchor.y + anchor.halfH;
+
+  const canAbove = (markerTop - fixedTipH - (ARROW+GAP)) >= PADDING;
   const below = !canAbove;
   tooltip.classList.toggle("below", below);
 
@@ -389,24 +394,29 @@ function placeTooltip(){
   const minCenter = fixedTipW/2 + PADDING;
   const maxCenter = mapRect.width - fixedTipW/2 - PADDING;
 
-  const sideThresholdLeft  = minCenter + (ARROW+GAP);
-  const sideThresholdRight = maxCenter - (ARROW+GAP);
+  // ✅ si proche des bords => flèche latérale, et surtout : on décale de la taille du marqueur
+  const leftNeed  = anchor.x - anchor.halfW - (ARROW+GAP) < (fixedTipW/2 + PADDING);
+  const rightNeed = anchor.x + anchor.halfW + (ARROW+GAP) > (mapRect.width - fixedTipW/2 - PADDING);
 
   let baseX;
 
-  if(anchor.x < sideThresholdLeft){
+  if(leftNeed && !rightNeed){
+    // bulle à droite
     tooltip.classList.add("arrow-left");
-    baseX = clamp(anchor.x + fixedTipW/2 + (ARROW+GAP), minCenter, maxCenter);
-  } else if(anchor.x > sideThresholdRight){
+    baseX = clamp(anchor.x + anchor.halfW + (ARROW+GAP) + fixedTipW/2, minCenter, maxCenter);
+  } else if(rightNeed && !leftNeed){
+    // bulle à gauche
     tooltip.classList.add("arrow-right");
-    baseX = clamp(anchor.x - fixedTipW/2 - (ARROW+GAP), minCenter, maxCenter);
+    baseX = clamp(anchor.x - anchor.halfW - (ARROW+GAP) - fixedTipW/2, minCenter, maxCenter);
   } else {
+    // centrée
     baseX = clamp(anchor.x, minCenter, maxCenter);
   }
 
+  // ✅ top avec marge pour ne pas recouvrir le marqueur
   let top = below
-    ? (anchor.y + (ARROW+GAP))
-    : (anchor.y - fixedTipH - (ARROW+GAP));
+    ? (markerBot + (ARROW+GAP))
+    : (markerTop - fixedTipH - (ARROW+GAP));
 
   top = clamp(top, PADDING, mapRect.height - fixedTipH - PADDING);
 
@@ -414,6 +424,7 @@ function placeTooltip(){
   tooltip.style.top  = top + "px";
   tooltip.style.display="flex";
 
+  // placement flèche
   if(tooltip.classList.contains("arrow-left") || tooltip.classList.contains("arrow-right")){
     let arrowY = anchor.y - top;
     arrowY = clamp(arrowY, 14, fixedTipH - 14);
