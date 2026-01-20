@@ -1,506 +1,553 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Feodalis – Carte interactive</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Feodalis – Carte interactive</title>
 
-<style>
-html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif;}
-#map-wrapper{width:100%;display:flex;justify-content:center;padding:10px;box-sizing:border-box;}
-#map-container{position:relative;width:min(95vw,1100px);}
-#map-image{display:block;width:100%;height:auto;}
-#markers-layer{position:absolute;inset:0;pointer-events:none;}
+  <style>
+    html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif}
+    #map-wrapper{width:100%;display:flex;justify-content:center;padding:10px;box-sizing:border-box}
+    #map-container{position:relative;width:min(95vw,1100px)}
+    #map-image{display:block;width:100%;height:auto}
+    #markers-layer{position:absolute;inset:0;pointer-events:none}
 
-.marker{
-  position:absolute;
-  width:clamp(28px,6vw,90px);
-  height:clamp(28px,6vw,90px);
-  transform:translate(-50%,-50%);
-  cursor:pointer;
-  pointer-events:auto;
-}
-.marker img{width:100%;height:100%;object-fit:contain;}
+    .marker{
+      position:absolute;
+      width:clamp(28px,6vw,90px);
+      height:clamp(28px,6vw,90px);
+      transform:translate(-50%,-50%);
+      cursor:pointer;
+      pointer-events:auto
+    }
+    .marker img{width:100%;height:100%;object-fit:contain}
 
-.tooltip{
-  position:absolute;
-  background:#6b4a2d;
-  color:#f5e6c8;
-  border-radius:12px;
-  padding:clamp(6px,2vw,10px) clamp(8px,3vw,12px);
-  font-size:clamp(11px,3vw,14px);
-  max-width:clamp(210px,78vw,340px);
-  box-shadow:0 6px 16px rgba(0,0,0,.4);
-  z-index:999;
+    .hotspot{
+      position:absolute;
+      pointer-events:auto;
+      cursor:pointer;
+      background:transparent;
+    }
 
-  display:none;
-  pointer-events:auto;
-  overflow-wrap:anywhere;
-  word-break:break-word;
+    .tooltip{
+      position:absolute;
+      background:#6b4a2d;
+      color:#f5e6c8;
+      border-radius:12px;
+      padding:clamp(6px,2vw,10px) clamp(8px,3vw,12px);
+      font-size:clamp(11px,3vw,14px);
+      max-width:clamp(210px,78vw,360px);
+      box-shadow:0 6px 16px rgba(0,0,0,.4);
+      z-index:999;
+      display:none;
+      pointer-events:auto;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+      width:var(--tip-w,auto);
+      height:var(--tip-h,auto);
+      box-sizing:border-box;
+      display:flex;
+      flex-direction:column;
+      transform:translateX(-50%);
+      --arrow-x:50%;
+      --arrow-y:50%;
+    }
 
-  width:var(--tip-w, auto);
-  height:var(--tip-h, auto);
-  box-sizing:border-box;
+    .tooltip::after{content:"";position:absolute;border-style:solid}
 
-  flex-direction:column;
-  transform:translateX(-50%);
+    .tooltip:not(.below):not(.arrow-left):not(.arrow-right)::after{
+      left:var(--arrow-x);
+      transform:translateX(-50%);
+      bottom:-6px;
+      border-width:6px 6px 0 6px;
+      border-color:#6b4a2d transparent transparent transparent
+    }
+    .tooltip.below:not(.arrow-left):not(.arrow-right)::after{
+      left:var(--arrow-x);
+      transform:translateX(-50%);
+      top:-6px;
+      border-width:0 6px 6px 6px;
+      border-color:transparent transparent #6b4a2d transparent
+    }
+    .tooltip.arrow-left::after{
+      top:var(--arrow-y);
+      transform:translateY(-50%);
+      left:-6px;
+      border-width:6px 6px 6px 0;
+      border-color:transparent #6b4a2d transparent transparent
+    }
+    .tooltip.arrow-right::after{
+      top:var(--arrow-y);
+      transform:translateY(-50%);
+      right:-6px;
+      border-width:6px 0 6px 6px;
+      border-color:transparent transparent transparent #6b4a2d
+    }
 
-  --arrow-x:50%;
-  --arrow-y:50%;
-}
-.tooltip::after{content:"";position:absolute;border-style:solid;}
+    .tip-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .tip-title{font-weight:700}
+    .tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95}
+    .tip-divider{height:1px;background:rgba(255,255,255,.2);margin:6px 0}
+    .tip-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;font-size:clamp(11px,2.8vw,13px)}
+    .k{opacity:.9}
+    .v{text-align:right;font-weight:700;color:#fff2cf}
+    .tip-body{flex:1;display:flex;flex-direction:column;min-height:0}
+    .tip-nav{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:8px;gap:10px}
+    .tip-btn{
+      background:rgba(255,255,255,.15);
+      border:1px solid rgba(255,255,255,.2);
+      color:#f5e6c8;
+      border-radius:8px;
+      padding:clamp(4px,2vw,6px) clamp(6px,3vw,9px);
+      font-size:clamp(9px,2.6vw,10px);
+      cursor:pointer;
+      user-select:none;
+      line-height:1
+    }
+    .tip-btn:disabled{opacity:.4;cursor:not-allowed}
+    .tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;white-space:nowrap}
 
-.tooltip:not(.below):not(.arrow-left):not(.arrow-right)::after{
-  left:var(--arrow-x);
-  transform:translateX(-50%);
-  bottom:-6px;
-  border-width:6px 6px 0 6px;
-  border-color:#6b4a2d transparent transparent transparent;
-}
-.tooltip.below:not(.arrow-left):not(.arrow-right)::after{
-  left:var(--arrow-x);
-  transform:translateX(-50%);
-  top:-6px;
-  border-width:0 6px 6px 6px;
-  border-color:transparent transparent #6b4a2d transparent;
-}
-.tooltip.arrow-left::after{
-  top:var(--arrow-y);
-  transform:translateY(-50%);
-  left:-6px;
-  border-width:6px 6px 6px 0;
-  border-color:transparent #6b4a2d transparent transparent;
-}
-.tooltip.arrow-right::after{
-  top:var(--arrow-y);
-  transform:translateY(-50%);
-  right:-6px;
-  border-width:6px 0 6px 6px;
-  border-color:transparent transparent transparent #6b4a2d;
-}
-
-.tip-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
-.tip-title{font-weight:bold;}
-.tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95;}
-.tip-divider{height:1px;background:rgba(255,255,255,.2);margin:6px 0;}
-.tip-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;font-size:clamp(11px,2.8vw,13px);}
-.k{opacity:.9;}
-.v{text-align:right;font-weight:bold;color:#fff2cf;}
-.tip-body{flex:1;display:flex;flex-direction:column;min-height:0;}
-.tip-nav{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:8px;gap:10px;}
-.tip-btn{
-  background:rgba(255,255,255,.15);
-  border:1px solid rgba(255,255,255,.2);
-  color:#f5e6c8;border-radius:8px;
-  padding:clamp(4px,2vw,6px) clamp(6px,3vw,9px);
-  font-size:clamp(9px,2.6vw,10px);
-  cursor:pointer;user-select:none;line-height:1;
-}
-.tip-btn:disabled{opacity:.4;cursor:not-allowed;}
-.tip-page{font-size:clamp(10px,2.6vw,12px);opacity:.9;white-space:nowrap;}
-</style>
+    .tip-link{
+      color:#fff2cf;
+      text-decoration:underline;
+      font-weight:700;
+    }
+  </style>
 </head>
 
 <body>
-<div id="map-wrapper">
-  <div id="map-container">
-    <img id="map-image" src="carte.png" alt="Carte Feodalis">
-    <div id="markers-layer">
+  <div id="map-wrapper">
+    <div id="map-container">
+      <img id="map-image" src="carte.png" alt="Carte Feodalis">
+      <div id="markers-layer">
 
-      <!-- MARQUEURS -->
-      <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
-      <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
-      <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
-      <div class="marker" style="left:11.62%; top:6.69%;" data-maison="Lombard"><img src="Lombard.png" alt="Lombard"></div>
-      <div class="marker" style="left:11.77%; top:35.99%;" data-maison="Givre-Bois"><img src="Givre-Bois.png" alt="Givre-Bois"></div>
-      <div class="marker" style="left:8.40%; top:48.97%;" data-maison="Montcristal"><img src="Montcristal.png" alt="Montcristal"></div>
-      <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda"><img src="Leda.png" alt="Léda"></div>
-      <div class="marker" style="left:30.81%; top:37.99%;" data-maison="Bellini"><img src="Bellini.png" alt="Bellini"></div>
-      <div class="marker" style="left:46.83%; top:4.49%;" data-maison="Contrevent"><img src="Contrevent.png" alt="Contrevent"></div>
-      <div class="marker" style="left:55.08%; top:23%;" data-maison="Clawthorne"><img src="Clawthorne.png" alt="Clawthorne"></div>
-      <div class="marker" style="left:57.76%; top:43.75%;" data-maison="Messny"><img src="Messny.png" alt="Messny"></div>
-      <div class="marker" style="left:58.59%; top:56.49%;" data-maison="Valor"><img src="Valor.png" alt="Valor"></div>
-      <div class="marker" style="left:60.99%; top:72.31%;" data-maison="Lebon"><img src="Lebon.png" alt="Lebon"></div>
-      <div class="marker" style="left:57.03%; top:83.74%;" data-maison="Taurmont"><img src="Taurmont.png" alt="Taurmont"></div>
-      <div class="marker" style="left:24.27%; top:88.48%;" data-maison="Astraghort"><img src="Astraghort.png" alt="Astraghort"></div>
-      <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
-      <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png" alt="Malty"></div>
-      <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png" alt="Heruli"></div>
-      <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
+        <div class="marker" style="left:31.54%; top:17.33%;" data-maison="Thorsen"><img src="Thorsen.png" alt="Thorsen"></div>
+        <div class="marker" style="left:35.16%; top:30.27%;" data-maison="Loupargent"><img src="Loupargent.png" alt="Loupargent"></div>
+        <div class="marker" style="left:12.35%; top:14.11%;" data-maison="Austren"><img src="Austren.png" alt="Austren"></div>
+        <div class="marker" style="left:11.62%; top:6.69%;" data-maison="Lombard"><img src="Lombard.png" alt="Lombard"></div>
+        <div class="marker" style="left:11.77%; top:35.99%;" data-maison="Givre-Bois"><img src="Givre-Bois.png" alt="Givre-Bois"></div>
+        <div class="marker" style="left:8.40%; top:48.97%;" data-maison="Montcristal"><img src="Montcristal.png" alt="Montcristal"></div>
+        <div class="marker" style="left:19.73%; top:48.93%;" data-maison="Léda"><img src="Leda.png" alt="Léda"></div>
+        <div class="marker" style="left:30.81%; top:37.99%;" data-maison="Bellini"><img src="Bellini.png" alt="Bellini"></div>
+        <div class="marker" style="left:46.83%; top:4.49%;" data-maison="Contrevent"><img src="Contrevent.png" alt="Contrevent"></div>
+        <div class="marker" style="left:55.08%; top:23%;" data-maison="Clawthorne"><img src="Clawthorne.png" alt="Clawthorne"></div>
+        <div class="marker" style="left:57.76%; top:43.75%;" data-maison="Messny"><img src="Messny.png" alt="Messny"></div>
+        <div class="marker" style="left:58.59%; top:56.49%;" data-maison="Valor"><img src="Valor.png" alt="Valor"></div>
+        <div class="marker" style="left:60.99%; top:72.31%;" data-maison="Lebon"><img src="Lebon.png" alt="Lebon"></div>
+        <div class="marker" style="left:57.03%; top:83.74%;" data-maison="Taurmont"><img src="Taurmont.png" alt="Taurmont"></div>
+        <div class="marker" style="left:24.27%; top:88.48%;" data-maison="Astraghort"><img src="Astraghort.png" alt="Astraghort"></div>
+        <div class="marker" style="left:22.51%; top:58.74%;" data-maison="Feublanc"><img src="Feublanc.png" alt="Feublanc"></div>
+        <div class="marker" style="left:23%; top:25%;" data-maison="Malty"><img src="Malty.png" alt="Malty"></div>
+        <div class="marker" style="left:5.5%; top:62%;" data-maison="Heruli"><img src="Heruli.png" alt="Heruli"></div>
+        <div class="marker" style="left:70%; top:26%;" data-maison="Tirel"><img src="Tirel.png" alt="Tirel"></div>
 
-      <div id="tooltip" class="tooltip"></div>
+        <!-- Zone cliquable sur le logo en haut à droite (ajuste si besoin) -->
+        <div id="logo-hotspot" class="hotspot" style="left:78%; top:2%; width:20%; height:18%;"></div>
+
+        <div id="tooltip" class="tooltip"></div>
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
+  <script>
+    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
-const tooltip = document.getElementById("tooltip");
-const map = document.getElementById("map-container");
+    const tooltip = document.getElementById("tooltip");
+    const map = document.getElementById("map-container");
+    const logoHotspot = document.getElementById("logo-hotspot");
 
-let rows = [];
-let dataReady = false;
+    let rows = [];
+    let headerMap = {};
+    let dataReady = false;
 
-// header -> [indices...]
-let headerMap = {};
+    let currentMarker = null;
+    let currentRow = null;
+    let currentPage = 1;
 
-let currentMarker=null, currentRow=null, currentPage=1;
+    let fixedTipW = null;
+    let fixedTipH = null;
 
-// ancrage + taille marqueur
-let anchor={x:0,y:0, halfW:0, halfH:0};
+    const PAGES_TOTAL = 5;
+    const ARROW = 6;
+    const GAP = 14;
+    const PADDING = 8;
 
-let fixedTipW=null;
-let fixedTipH=null;
+    let anchor = { x:0, y:0, halfW:0, halfH:0, forced:false };
 
-const PAGES_TOTAL = 5;
-const ARROW = 6;
-const GAP = 14;      // ✅ un peu plus pour être sûr de ne pas recouvrir le blason
-const PADDING = 8;
+    const RDD_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ&start_radio=1";
 
-function normalize(s){
-  return (s||"")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9]/g,"");
-}
-function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-function isEmpty(v){ return v===undefined || v===null || String(v).trim()===""; }
-function safeText(v){ return isEmpty(v) ? "—" : String(v).trim(); }
-function safeNum(v){
-  if(isEmpty(v)) return "0";
-  const s = String(v).trim().replace(",", ".");
-  const n = Number(s);
-  return Number.isFinite(n) ? String(v).trim() : "0";
-}
+    function normalize(s){
+      return (s||"")
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+        .replace(/[^a-z0-9]/g,"");
+    }
+    function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+    function isEmpty(v){ return v===undefined || v===null || String(v).trim()===""; }
+    function safeText(v){ return isEmpty(v) ? "—" : String(v).trim(); }
+    function safeNum(v){
+      if(isEmpty(v)) return "0";
+      const s = String(v).trim().replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? String(v).trim() : "0";
+    }
+    function capWords(str){
+      const s = safeText(str);
+      if(s==="—") return s;
+      return s.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
+    }
 
-// ✅ Majuscules (simple et sûr)
-function capWords(str){
-  const s = safeText(str);
-  if(s==="—") return s;
-  return s.replace(/\S+/g, w => w.charAt(0).toUpperCase() + w.slice(1));
-}
+    function headerIdx(title, occ=0){
+      const arr = headerMap[normalize(title)];
+      if(!arr || arr.length===0) return undefined;
+      return arr[Math.min(occ, arr.length-1)];
+    }
+    function getCell(row, title, occ=0, fallbackIndex){
+      const idx = headerIdx(title, occ);
+      if(idx !== undefined) return row[idx];
+      if(fallbackIndex !== undefined) return row[fallbackIndex];
+      return "";
+    }
+    function findRowByMaison(maison){
+      const idxMaison = headerIdx("Maison", 0);
+      const col = (idxMaison !== undefined) ? idxMaison : 1;
+      const key = normalize(maison);
+      return rows.find(r => normalize(r[col]) === key) || null;
+    }
 
-function headerIdx(title, occ=0){
-  const arr = headerMap[normalize(title)];
-  if(!arr || arr.length===0) return undefined;
-  return arr[Math.min(occ, arr.length-1)];
-}
-function getCell(row, title, occ=0, fallbackIndex){
-  const idx = headerIdx(title, occ);
-  if(idx !== undefined) return row[idx];
-  if(fallbackIndex !== undefined) return row[fallbackIndex];
-  return "";
-}
-function findRowByMaison(maison){
-  const idxMaison = headerIdx("Maison", 0);
-  const col = (idxMaison !== undefined) ? idxMaison : 1;
-  const key = normalize(maison);
-  return rows.find(r => normalize(r[col]) === key) || null;
-}
+    fetch(SHEET_URL)
+      .then(r => r.text())
+      .then(t => {
+        let all = t.split("\n").map(l => l.split("\t"));
+        all = all.filter(r => r.some(c => (c||"").trim() !== ""));
+        if(all.length < 2) return;
 
-fetch(SHEET_URL)
-  .then(r=>r.text())
-  .then(t=>{
-    let all = t.split("\n").map(l=>l.split("\t"));
-    all = all.filter(r => r.some(c => (c||"").trim() !== ""));
-    if(all.length < 2){ dataReady=false; return; }
+        const headers = all[0];
+        headerMap = {};
+        headers.forEach((h,i) => {
+          const k = normalize(h);
+          if(!k) return;
+          (headerMap[k] ||= []).push(i);
+        });
 
-    const headers = all[0];
-    headerMap = {};
-    headers.forEach((h,i)=>{
-      const k = normalize(h);
-      if(!k) return;
-      if(!headerMap[k]) headerMap[k] = [];
-      headerMap[k].push(i);
+        rows = all.slice(1);
+        dataReady = true;
+      })
+      .catch(() => { dataReady = false; });
+
+    function buildTooltip(row, page){
+      if(anchor.forced){
+        const title = "🎟️ Récompense";
+        const msg = `Bravo ! Tu as gagné <b>1 ticket de la RDD</b>.<br>Pour le récupérer, <a class="tip-link" href="${RDD_URL}" target="_blank" rel="noopener">clique ici</a>.`;
+        return `
+          <div class="tip-header">
+            <div>
+              <div class="tip-title">Feodalis</div>
+              <div class="tip-sub">${title}</div>
+            </div>
+            <div class="tip-page">★</div>
+          </div>
+          <div class="tip-divider"></div>
+          <div class="tip-body">
+            <div style="line-height:1.3">${msg}</div>
+            <div class="tip-nav" style="justify-content:center">
+              <button class="tip-btn" data-action="close">Fermer</button>
+            </div>
+          </div>
+        `;
+      }
+
+      if(!dataReady) return "<b>Chargement…</b>";
+      if(!row) return "<b>Données absentes</b>";
+
+      const royaume   = capWords(getCell(row, "Royaume", 0, 0));
+      const maison    = capWords(getCell(row, "Maison", 0, 1));
+      const joueur    = capWords(getCell(row, "Joueur", 0, 2));
+      const rang      = capWords(getCell(row, "Rang", 0, 3));
+      const lige      = capWords(getCell(row, "Seigneur lige", 0, 4));
+      const chefLieu  = capWords(getCell(row, "Chef-lieu", 0, 27));
+      const championT = capWords(getCell(row, "Champion", 0, 28));
+
+      const prestige  = safeNum(getCell(row, "Prestige", 0, 5));
+
+      const techMil   = safeNum(getCell(row, "tech. militaire", 0, 6));
+      const economie  = safeNum(getCell(row, "économie", 0, 7));
+      const fortif    = safeNum(getCell(row, "fortification", 0, 8));
+
+      const c_tranch  = safeNum(getCell(row, "tranchantes",   0, 9));
+      const c_cond    = safeNum(getCell(row, "condondantes",  0, 10));
+      const c_hast    = safeNum(getCell(row, "hast",          0, 11));
+      const c_proj    = safeNum(getCell(row, "projection",    0, 12));
+      const c_sens    = safeNum(getCell(row, "sens du combat",0, 13));
+
+      const e_maille  = safeNum(getCell(row, "côte de maille",0, 14));
+      const e_casque  = safeNum(getCell(row, "casque",        0, 15));
+      const e_boucl   = safeNum(getCell(row, "bouclier",      0, 16));
+      const e_plast   = safeNum(getCell(row, "plastron",      0, 17));
+      const e_gants   = safeNum(getCell(row, "gants",         0, 18));
+
+      const a_tranch  = safeNum(getCell(row, "tranchantes",  1, 23));
+      const a_cond    = safeNum(getCell(row, "condondantes", 1, 24));
+      const a_hast    = safeNum(getCell(row, "hast",         1, 25));
+      const a_proj    = safeNum(getCell(row, "projection",   1, 26));
+
+      let title="", body="";
+
+      if(page===1){
+        title="Infos";
+        body=`
+          <div class="tip-grid">
+            <div class="k">Prestige</div><div class="v">${prestige}</div>
+            <div class="k">Royaume</div><div class="v">${royaume}</div>
+            <div class="k">Rang</div><div class="v">${rang}</div>
+            <div class="k">Seigneur lige</div><div class="v">${lige}</div>
+            <div class="k">Chef-lieu</div><div class="v">${chefLieu}</div>
+            <div class="k">Joueur</div><div class="v">${joueur}</div>
+          </div>`;
+      } else if(page===2){
+        title="Stats de la Maison";
+        body=`
+          <div class="tip-grid">
+            <div class="k">Tech. militaire</div><div class="v">${techMil}</div>
+            <div class="k">Économie</div><div class="v">${economie}</div>
+            <div class="k">Fortification</div><div class="v">${fortif}</div>
+          </div>`;
+      } else if(page===3){
+        title="Compétences du champion";
+        body=`
+          <div class="tip-grid">
+            <div class="k">Champion</div><div class="v">${championT}</div>
+            <div class="k">Tranchantes</div><div class="v">${c_tranch}</div>
+            <div class="k">Condondantes</div><div class="v">${c_cond}</div>
+            <div class="k">Hast</div><div class="v">${c_hast}</div>
+            <div class="k">Projection</div><div class="v">${c_proj}</div>
+            <div class="k">Sens du combat</div><div class="v">${c_sens}</div>
+          </div>`;
+      } else if(page===4){
+        title="Stats de l'Équipement";
+        body=`
+          <div class="tip-grid">
+            <div class="k">Côte de maille</div><div class="v">${e_maille}</div>
+            <div class="k">Casque</div><div class="v">${e_casque}</div>
+            <div class="k">Bouclier</div><div class="v">${e_boucl}</div>
+            <div class="k">Plastron</div><div class="v">${e_plast}</div>
+            <div class="k">Gants</div><div class="v">${e_gants}</div>
+          </div>`;
+      } else {
+        title="Stats des Armes";
+        body=`
+          <div class="tip-grid">
+            <div class="k">Tranchantes</div><div class="v">${a_tranch}</div>
+            <div class="k">Condondantes</div><div class="v">${a_cond}</div>
+            <div class="k">Hast</div><div class="v">${a_hast}</div>
+            <div class="k">Projection</div><div class="v">${a_proj}</div>
+          </div>`;
+      }
+
+      return `
+        <div class="tip-header">
+          <div>
+            <div class="tip-title">${maison}</div>
+            <div class="tip-sub">${title}</div>
+          </div>
+          <div class="tip-page">${page}/${PAGES_TOTAL}</div>
+        </div>
+        <div class="tip-divider"></div>
+        <div class="tip-body">
+          ${body}
+          <div class="tip-nav">
+            <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
+            <div class="tip-page">${title}</div>
+            <button class="tip-btn" data-action="next" ${page===PAGES_TOTAL?"disabled":""}>▶</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function computeAnchorFromMarker(marker){
+      const m = marker.getBoundingClientRect();
+      const c = map.getBoundingClientRect();
+      anchor = {
+        x:(m.left-c.left)+m.width/2,
+        y:(m.top-c.top)+m.height/2,
+        halfW:m.width/2,
+        halfH:m.height/2,
+        forced:false
+      };
+    }
+
+    function computeAnchorFromHotspot(el){
+      const r = el.getBoundingClientRect();
+      const c = map.getBoundingClientRect();
+
+      const x = (r.left-c.left) + r.width/2;
+      const y = (r.top -c.top ) + r.height/2;
+
+      anchor = { x, y, halfW:r.width/2, halfH:r.height/2, forced:true };
+    }
+
+    function clearFixedSize(){
+      fixedTipW=null; fixedTipH=null;
+      tooltip.style.setProperty("--tip-w","auto");
+      tooltip.style.setProperty("--tip-h","auto");
+    }
+
+    function applyFixedSize(){
+      if(fixedTipW && fixedTipH){
+        tooltip.style.setProperty("--tip-w", fixedTipW + "px");
+        tooltip.style.setProperty("--tip-h", fixedTipH + "px");
+      }
+    }
+
+    function computeFixedSize(){
+      const mapRect = map.getBoundingClientRect();
+      clearFixedSize();
+      tooltip.style.display="flex";
+
+      let maxW=0, maxH=0;
+      const total = anchor.forced ? 1 : PAGES_TOTAL;
+
+      for(let p=1; p<=total; p++){
+        tooltip.innerHTML = buildTooltip(currentRow, p);
+        const r = tooltip.getBoundingClientRect();
+        if(r.width > maxW) maxW = r.width;
+        if(r.height> maxH) maxH = r.height;
+      }
+
+      fixedTipW = Math.min(maxW, mapRect.width - PADDING*2);
+      fixedTipH = maxH;
+      applyFixedSize();
+    }
+
+    function placeTooltip(){
+      const mapRect = map.getBoundingClientRect();
+      applyFixedSize();
+
+      const markerTop = anchor.y - anchor.halfH;
+      const markerBot = anchor.y + anchor.halfH;
+
+      const canAbove = (markerTop - fixedTipH - (ARROW+GAP)) >= PADDING;
+      const below = !canAbove;
+      tooltip.classList.toggle("below", below);
+
+      tooltip.classList.remove("arrow-left","arrow-right");
+
+      const minCenter = fixedTipW/2 + PADDING;
+      const maxCenter = mapRect.width - fixedTipW/2 - PADDING;
+
+      const leftNeed  = anchor.x - anchor.halfW - (ARROW+GAP) < (fixedTipW/2 + PADDING);
+      const rightNeed = anchor.x + anchor.halfW + (ARROW+GAP) > (mapRect.width - fixedTipW/2 - PADDING);
+
+      let baseX;
+      if(leftNeed && !rightNeed){
+        tooltip.classList.add("arrow-left");
+        baseX = clamp(anchor.x + anchor.halfW + (ARROW+GAP) + fixedTipW/2, minCenter, maxCenter);
+      } else if(rightNeed && !leftNeed){
+        tooltip.classList.add("arrow-right");
+        baseX = clamp(anchor.x - anchor.halfW - (ARROW+GAP) - fixedTipW/2, minCenter, maxCenter);
+      } else {
+        baseX = clamp(anchor.x, minCenter, maxCenter);
+      }
+
+      let top = below
+        ? (markerBot + (ARROW+GAP))
+        : (markerTop - fixedTipH - (ARROW+GAP));
+
+      top = clamp(top, PADDING, mapRect.height - fixedTipH - PADDING);
+
+      tooltip.style.left = baseX + "px";
+      tooltip.style.top  = top + "px";
+      tooltip.style.display="flex";
+
+      if(tooltip.classList.contains("arrow-left") || tooltip.classList.contains("arrow-right")){
+        let arrowY = anchor.y - top;
+        arrowY = clamp(arrowY, 14, fixedTipH - 14);
+        tooltip.style.setProperty("--arrow-y", arrowY + "px");
+      } else {
+        const visualLeft = baseX - fixedTipW/2;
+        let arrowX = anchor.x - visualLeft;
+        arrowX = clamp(arrowX, 12, fixedTipW - 12);
+        tooltip.style.setProperty("--arrow-x", arrowX + "px");
+      }
+    }
+
+    function renderPage(){
+      tooltip.innerHTML = buildTooltip(currentRow, currentPage);
+      computeFixedSize();
+      placeTooltip();
+    }
+
+    function openForMarker(marker){
+      currentMarker = marker;
+      currentPage = 1;
+      currentRow = findRowByMaison(marker.dataset.maison);
+
+      computeAnchorFromMarker(marker);
+      renderPage();
+    }
+
+    function openLogoTooltip(){
+      currentMarker = null;
+      currentRow = null;
+      currentPage = 1;
+
+      computeAnchorFromHotspot(logoHotspot);
+      renderPage();
+    }
+
+    function closeTooltip(){
+      tooltip.style.display="none";
+      currentMarker = null;
+      currentRow = null;
+      currentPage = 1;
+      clearFixedSize();
+      anchor.forced = false;
+    }
+
+    tooltip.addEventListener("click", e => e.stopPropagation());
+    tooltip.addEventListener("click", e => {
+      const btn = e.target.closest("[data-action]");
+      if(!btn) return;
+
+      if(btn.dataset.action === "close") { closeTooltip(); return; }
+      if(anchor.forced) return;
+
+      if(btn.dataset.action==="prev" && currentPage>1) currentPage--;
+      if(btn.dataset.action==="next" && currentPage<PAGES_TOTAL) currentPage++;
+      renderPage();
     });
 
-    rows = all.slice(1);
-    dataReady = true;
-  })
-  .catch(()=>{ dataReady=false; });
+    document.querySelectorAll(".marker").forEach(m=>{
+      m.addEventListener("click", e=>{
+        e.stopPropagation();
+        if(currentMarker===m && !anchor.forced) closeTooltip();
+        else openForMarker(m);
+      });
+    });
 
-function buildTooltip(row,page){
-  if(!dataReady) return "<b>Chargement…</b>";
-  if(!row) return "<b>Données absentes</b>";
+    logoHotspot.addEventListener("click", e=>{
+      e.stopPropagation();
+      openLogoTooltip();
+    });
 
-  // Textes
-  const royaume   = capWords(getCell(row, "Royaume", 0, 0));
-  const maison    = capWords(getCell(row, "Maison", 0, 1));
-  const joueur    = capWords(getCell(row, "Joueur", 0, 2));
-  const rang      = capWords(getCell(row, "Rang", 0, 3));
-  const lige      = capWords(getCell(row, "Seigneur lige", 0, 4));
-  const chefLieu  = capWords(getCell(row, "Chef-lieu", 0, 27));
-  const championT = capWords(getCell(row, "Champion", 0, 28));
+    document.addEventListener("click", ()=> closeTooltip());
 
-  // Num
-  const prestige  = safeNum(getCell(row, "Prestige", 0, 5));
+    function repositionIfOpen(){
+      if(tooltip.style.display==="flex"){
+        if(currentMarker) computeAnchorFromMarker(currentMarker);
+        else if(anchor.forced) computeAnchorFromHotspot(logoHotspot);
+        placeTooltip();
+      }
+    }
 
-  const techMil   = safeNum(getCell(row, "tech. militaire", 0, 6));
-  const economie  = safeNum(getCell(row, "économie", 0, 7));
-  const fortif    = safeNum(getCell(row, "fortification", 0, 8));
+    window.addEventListener("resize", ()=>{
+      if(tooltip.style.display==="flex"){
+        repositionIfOpen();
+        renderPage();
+      }
+    });
 
-  // Champion = occurrence 0
-  const c_tranch  = safeNum(getCell(row, "tranchantes",   0, 9));
-  const c_cond    = safeNum(getCell(row, "condondantes",  0, 10));
-  const c_hast    = safeNum(getCell(row, "hast",          0, 11));
-  const c_proj    = safeNum(getCell(row, "projection",    0, 12)); // ✅ projection (pas de s)
-  const c_sens    = safeNum(getCell(row, "sens du combat",0, 13));
-
-  // Équipement
-  const e_maille  = safeNum(getCell(row, "côte de maille",0, 14));
-  const e_casque  = safeNum(getCell(row, "casque",        0, 15));
-  const e_boucl   = safeNum(getCell(row, "bouclier",      0, 16));
-  const e_plast   = safeNum(getCell(row, "plastron",      0, 17));
-  const e_gants   = safeNum(getCell(row, "gants",         0, 18));
-
-  // Armes = occurrence 1
-  const a_tranch  = safeNum(getCell(row, "tranchantes",  1, 23));
-  const a_cond    = safeNum(getCell(row, "condondantes", 1, 24));
-  const a_hast    = safeNum(getCell(row, "hast",         1, 25));
-  const a_proj    = safeNum(getCell(row, "projection",   1, 26));
-
-  let title="", body="";
-
-  if(page===1){
-    title="Infos";
-    body=`
-      <div class="tip-grid">
-        <div class="k">Prestige</div><div class="v">${prestige}</div>
-        <div class="k">Royaume</div><div class="v">${royaume}</div>
-        <div class="k">Rang</div><div class="v">${rang}</div>
-        <div class="k">Seigneur lige</div><div class="v">${lige}</div>
-        <div class="k">Chef-lieu</div><div class="v">${chefLieu}</div>
-        <div class="k">Joueur</div><div class="v">${joueur}</div>
-      </div>`;
-  } else if(page===2){
-    title="Stats de la Maison";
-    body=`
-      <div class="tip-grid">
-        <div class="k">Tech. militaire</div><div class="v">${techMil}</div>
-        <div class="k">Économie</div><div class="v">${economie}</div>
-        <div class="k">Fortification</div><div class="v">${fortif}</div>
-      </div>`;
-  } else if(page===3){
-    title="Compétences du champion";
-    body=`
-      <div class="tip-grid">
-        <div class="k">Champion</div><div class="v">${championT}</div>
-        <div class="k">Tranchantes</div><div class="v">${c_tranch}</div>
-        <div class="k">Condondantes</div><div class="v">${c_cond}</div>
-        <div class="k">Hast</div><div class="v">${c_hast}</div>
-        <div class="k">Projection</div><div class="v">${c_proj}</div>
-        <div class="k">Sens du combat</div><div class="v">${c_sens}</div>
-      </div>`;
-  } else if(page===4){
-    title="Stats de l'Équipement";
-    body=`
-      <div class="tip-grid">
-        <div class="k">Côte de maille</div><div class="v">${e_maille}</div>
-        <div class="k">Casque</div><div class="v">${e_casque}</div>
-        <div class="k">Bouclier</div><div class="v">${e_boucl}</div>
-        <div class="k">Plastron</div><div class="v">${e_plast}</div>
-        <div class="k">Gants</div><div class="v">${e_gants}</div>
-      </div>`;
-  } else {
-    title="Stats des Armes";
-    body=`
-      <div class="tip-grid">
-        <div class="k">Tranchantes</div><div class="v">${a_tranch}</div>
-        <div class="k">Condondantes</div><div class="v">${a_cond}</div>
-        <div class="k">Hast</div><div class="v">${a_hast}</div>
-        <div class="k">Projection</div><div class="v">${a_proj}</div>
-      </div>`;
-  }
-
-  return `
-    <div class="tip-header">
-      <div>
-        <div class="tip-title">${maison}</div>
-        <div class="tip-sub">${title}</div>
-      </div>
-      <div class="tip-page">${page}/${PAGES_TOTAL}</div>
-    </div>
-    <div class="tip-divider"></div>
-    <div class="tip-body">
-      ${body}
-      <div class="tip-nav">
-        <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
-        <div class="tip-page">${title}</div>
-        <button class="tip-btn" data-action="next" ${page===PAGES_TOTAL?"disabled":""}>▶</button>
-      </div>
-    </div>
-  `;
-}
-
-function computeAnchor(marker){
-  const m = marker.getBoundingClientRect();
-  const c = map.getBoundingClientRect();
-
-  const cx = (m.left - c.left) + m.width/2;
-  const cy = (m.top  - c.top)  + m.height/2;
-
-  anchor.x = cx;
-  anchor.y = cy;
-  anchor.halfW = m.width/2;
-  anchor.halfH = m.height/2;
-}
-
-function clearFixedSize(){
-  fixedTipW=null; fixedTipH=null;
-  tooltip.style.setProperty("--tip-w","auto");
-  tooltip.style.setProperty("--tip-h","auto");
-}
-function applyFixedSize(){
-  if(fixedTipW && fixedTipH){
-    tooltip.style.setProperty("--tip-w", fixedTipW + "px");
-    tooltip.style.setProperty("--tip-h", fixedTipH + "px");
-  }
-}
-function computeFixedSize(){
-  const mapRect = map.getBoundingClientRect();
-  clearFixedSize();
-  tooltip.style.display="flex";
-
-  let maxW=0, maxH=0;
-  for(let p=1;p<=PAGES_TOTAL;p++){
-    tooltip.innerHTML = buildTooltip(currentRow,p);
-    const r = tooltip.getBoundingClientRect();
-    if(r.width > maxW) maxW = r.width;
-    if(r.height> maxH) maxH = r.height;
-  }
-
-  const maxAllowedW = mapRect.width - PADDING*2;
-  fixedTipW = Math.min(maxW, maxAllowedW);
-  fixedTipH = maxH;
-
-  applyFixedSize();
-}
-
-function placeTooltip(){
-  const mapRect = map.getBoundingClientRect();
-  applyFixedSize();
-
-  // ✅ ancrage haut/bas basé sur le marqueur (pas sur un point approximatif)
-  const markerTop = anchor.y - anchor.halfH;
-  const markerBot = anchor.y + anchor.halfH;
-
-  const canAbove = (markerTop - fixedTipH - (ARROW+GAP)) >= PADDING;
-  const below = !canAbove;
-  tooltip.classList.toggle("below", below);
-
-  tooltip.classList.remove("arrow-left","arrow-right");
-
-  const minCenter = fixedTipW/2 + PADDING;
-  const maxCenter = mapRect.width - fixedTipW/2 - PADDING;
-
-  // ✅ si proche des bords => flèche latérale, et surtout : on décale de la taille du marqueur
-  const leftNeed  = anchor.x - anchor.halfW - (ARROW+GAP) < (fixedTipW/2 + PADDING);
-  const rightNeed = anchor.x + anchor.halfW + (ARROW+GAP) > (mapRect.width - fixedTipW/2 - PADDING);
-
-  let baseX;
-
-  if(leftNeed && !rightNeed){
-    // bulle à droite
-    tooltip.classList.add("arrow-left");
-    baseX = clamp(anchor.x + anchor.halfW + (ARROW+GAP) + fixedTipW/2, minCenter, maxCenter);
-  } else if(rightNeed && !leftNeed){
-    // bulle à gauche
-    tooltip.classList.add("arrow-right");
-    baseX = clamp(anchor.x - anchor.halfW - (ARROW+GAP) - fixedTipW/2, minCenter, maxCenter);
-  } else {
-    // centrée
-    baseX = clamp(anchor.x, minCenter, maxCenter);
-  }
-
-  // ✅ top avec marge pour ne pas recouvrir le marqueur
-  let top = below
-    ? (markerBot + (ARROW+GAP))
-    : (markerTop - fixedTipH - (ARROW+GAP));
-
-  top = clamp(top, PADDING, mapRect.height - fixedTipH - PADDING);
-
-  tooltip.style.left = baseX + "px";
-  tooltip.style.top  = top + "px";
-  tooltip.style.display="flex";
-
-  // placement flèche
-  if(tooltip.classList.contains("arrow-left") || tooltip.classList.contains("arrow-right")){
-    let arrowY = anchor.y - top;
-    arrowY = clamp(arrowY, 14, fixedTipH - 14);
-    tooltip.style.setProperty("--arrow-y", arrowY + "px");
-  } else {
-    const visualLeft = baseX - fixedTipW/2;
-    let arrowX = anchor.x - visualLeft;
-    arrowX = clamp(arrowX, 12, fixedTipW - 12);
-    tooltip.style.setProperty("--arrow-x", arrowX + "px");
-  }
-}
-
-function renderPage(){
-  tooltip.innerHTML = buildTooltip(currentRow, currentPage);
-  applyFixedSize();
-  placeTooltip();
-}
-
-function openFor(marker){
-  currentMarker = marker;
-  currentPage = 1;
-  currentRow = findRowByMaison(marker.dataset.maison);
-
-  computeAnchor(marker);
-
-  tooltip.innerHTML = buildTooltip(currentRow, 1);
-  tooltip.style.display="flex";
-
-  computeFixedSize();
-  renderPage();
-}
-
-function closeTooltip(){
-  tooltip.style.display="none";
-  currentMarker=null;
-  currentRow=null;
-  currentPage=1;
-  clearFixedSize();
-}
-
-tooltip.addEventListener("click", e => e.stopPropagation());
-tooltip.addEventListener("click", e => {
-  const btn = e.target.closest("[data-action]");
-  if(!btn) return;
-
-  if(btn.dataset.action==="prev" && currentPage>1) currentPage--;
-  if(btn.dataset.action==="next" && currentPage<PAGES_TOTAL) currentPage++;
-
-  renderPage();
-});
-
-document.querySelectorAll(".marker").forEach(m=>{
-  m.addEventListener("click", e=>{
-    e.stopPropagation();
-    if(currentMarker===m) closeTooltip();
-    else openFor(m);
-  });
-});
-
-document.addEventListener("click", ()=> closeTooltip());
-
-function repositionIfOpen(){
-  if(currentMarker && tooltip.style.display==="flex"){
-    computeAnchor(currentMarker);
-    placeTooltip();
-  }
-}
-
-window.addEventListener("resize", ()=>{
-  if(currentMarker){
-    computeAnchor(currentMarker);
-    computeFixedSize();
-    renderPage();
-  }
-});
-window.addEventListener("scroll", repositionIfOpen, {passive:true});
-</script>
+    window.addEventListener("scroll", repositionIfOpen, {passive:true});
+  </script>
 </body>
 </html>
