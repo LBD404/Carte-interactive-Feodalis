@@ -1,45 +1,17 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Feodalis – Carte interactive</title>
 
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  background:#0f2a3a;
-  font-family:serif;
-}
+html,body{margin:0;padding:0;background:#0f2a3a;font-family:serif;}
+#map-wrapper{width:100%;display:flex;justify-content:center;padding:10px;box-sizing:border-box;}
+#map-container{position:relative;width:min(95vw,1100px);}
+#map-image{display:block;width:100%;height:auto;}
+#markers-layer{position:absolute;inset:0;pointer-events:none;}
 
-#map-wrapper{
-  width:100%;
-  display:flex;
-  justify-content:center;
-  padding:10px;
-  box-sizing:border-box;
-}
-
-#map-container{
-  position:relative;
-  width:min(95vw,1100px);
-}
-
-#map-image{
-  display:block;
-  width:100%;
-  height:auto;
-}
-
-/* couche marqueurs */
-#markers-layer{
-  position:absolute;
-  inset:0;
-  pointer-events:none;
-}
-
-/* blasons */
 .marker{
   position:absolute;
   width:clamp(28px,6vw,90px);
@@ -48,13 +20,8 @@ html,body{
   cursor:pointer;
   pointer-events:auto;
 }
-.marker img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-}
+.marker img{width:100%;height:100%;object-fit:contain;}
 
-/* BULLE */
 .tooltip{
   position:absolute;
   background:#6b4a2d;
@@ -62,74 +29,66 @@ html,body{
   border-radius:12px;
   padding:clamp(6px,2vw,10px) clamp(8px,3vw,12px);
   font-size:clamp(11px,3vw,14px);
-  max-width:clamp(210px,78vw,320px);
+  max-width:clamp(210px,78vw,340px);
   box-shadow:0 6px 16px rgba(0,0,0,.4);
   z-index:999;
+
   display:none;
   pointer-events:auto;
   overflow-wrap:anywhere;
   word-break:break-word;
-  --arrow-x: 50%;
 
-  /* taille fixe calculée */
-  width: var(--tip-w, auto);
-  height: var(--tip-h, auto);
+  width:var(--tip-w, auto);
+  height:var(--tip-h, auto);
   box-sizing:border-box;
 
-  /* ✅ flex pour ancrer la nav en bas */
   flex-direction:column;
+  transform:translateX(-50%);
+
+  --arrow-x:50%;
+  --arrow-y:50%;
 }
 
-.tooltip::after{
-  content:"";
-  position:absolute;
+.tooltip::after{content:"";position:absolute;border-style:solid;}
+
+.tooltip:not(.below):not(.arrow-left):not(.arrow-right)::after{
   left:var(--arrow-x);
   transform:translateX(-50%);
-  border-style:solid;
-}
-.tooltip:not(.below)::after{
   bottom:-6px;
   border-width:6px 6px 0 6px;
   border-color:#6b4a2d transparent transparent transparent;
 }
-.tooltip.below::after{
+.tooltip.below:not(.arrow-left):not(.arrow-right)::after{
+  left:var(--arrow-x);
+  transform:translateX(-50%);
   top:-6px;
   border-width:0 6px 6px 6px;
   border-color:transparent transparent #6b4a2d transparent;
 }
-
-/* contenu */
-.tip-header{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  align-items:flex-start;
+.tooltip.arrow-left::after{
+  top:var(--arrow-y);
+  transform:translateY(-50%);
+  left:-6px;
+  border-width:6px 6px 6px 0;
+  border-color:transparent #6b4a2d transparent transparent;
 }
+.tooltip.arrow-right::after{
+  top:var(--arrow-y);
+  transform:translateY(-50%);
+  right:-6px;
+  border-width:6px 0 6px 6px;
+  border-color:transparent transparent transparent #6b4a2d;
+}
+
+.tip-header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
 .tip-title{font-weight:bold;}
 .tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95;}
-.tip-divider{
-  height:1px;
-  background:rgba(255,255,255,0.2);
-  margin:6px 0;
-}
-.tip-grid{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:4px 8px;
-  font-size:clamp(11px,2.8vw,13px);
-}
+.tip-divider{height:1px;background:rgba(255,255,255,.2);margin:6px 0;}
+.tip-grid{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;font-size:clamp(11px,2.8vw,13px);}
 .k{opacity:.9;}
 .v{text-align:right;font-weight:bold;color:#fff2cf;}
+.tip-body{flex:1;display:flex;flex-direction:column;min-height:0;}
 
-/* ✅ zone contenu flexible (pousse la nav en bas) */
-.tip-body{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  min-height:0; /* aide le flex quand la hauteur est fixe */
-}
-
-/* nav */
 .tip-nav{
   margin-top:auto;
   display:flex;
@@ -138,7 +97,6 @@ html,body{
   padding-top:8px;
   gap:10px;
 }
-
 .tip-btn{
   background:rgba(255,255,255,.15);
   border:1px solid rgba(255,255,255,.2);
@@ -156,7 +114,6 @@ html,body{
 </head>
 
 <body>
-
 <div id="map-wrapper">
   <div id="map-container">
     <img id="map-image" src="carte.png" alt="Carte Feodalis">
@@ -191,62 +148,129 @@ html,body{
 <script>
 const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQz9C26GIE30pGGxPGhsow_teQePVLbol9b5etVDkQMc_R4vYUGDckbwpZqj0HQOdIzca1W6X_Wu8ZR/pub?gid=1101898628&single=true&output=tsv";
 
-/*
-A=0, B=1, C=2, D=3, E=4
-G=6 H=7 I=8
-J..N=9..13
-AB=27
-AC=28
-*/
+const tooltip = document.getElementById("tooltip");
+const map = document.getElementById("map-container");
 
-let data=[], dataReady=false;
+let rows = [];
+let dataReady = false;
+
+// header -> [indices...]
+let headerMap = {};
 
 let currentMarker=null, currentRow=null, currentPage=1;
 let anchor={x:0,y:0};
-let layoutMode="above";
-let baseX=0;
 
 let fixedTipW=null;
 let fixedTipH=null;
 
+const PAGES_TOTAL = 5;
+
+// triangle + espace visuel
+const ARROW = 6;
+const GAP = 10;
+const PADDING = 8;
+
 function normalize(s){
-  return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+  return (s||"")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]/g,"");
 }
-function safe(v){ return (v===undefined||v===null||v==="")?"—":v; }
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+function isEmpty(v){ return v===undefined || v===null || String(v).trim()===""; }
+function safeText(v){ return isEmpty(v) ? "—" : String(v).trim(); }
+function safeNum(v){
+  if(isEmpty(v)) return "0";
+  const s = String(v).trim().replace(",", ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? String(v).trim() : "0";
+}
+
+function headerIdx(title, occ=0){
+  const arr = headerMap[normalize(title)];
+  if(!arr || arr.length===0) return undefined;
+  return arr[Math.min(occ, arr.length-1)];
+}
+function getCell(row, title, occ=0, fallbackIndex){
+  const idx = headerIdx(title, occ);
+  if(idx !== undefined) return row[idx];
+  if(fallbackIndex !== undefined) return row[fallbackIndex];
+  return "";
+}
+function findRowByMaison(maison){
+  const idxMaison = headerIdx("Maison", 0);
+  const col = (idxMaison !== undefined) ? idxMaison : 1;
+  const key = normalize(maison);
+  return rows.find(r => normalize(r[col]) === key) || null;
+}
 
 fetch(SHEET_URL)
   .then(r=>r.text())
   .then(t=>{
-    data=t.split("\n").map(l=>l.split("\t"));
-    dataReady=true;
+    let all = t.split("\n").map(l=>l.split("\t"));
+    all = all.filter(r => r.some(c => (c||"").trim() !== ""));
+    if(all.length < 2){ dataReady=false; return; }
+
+    const headers = all[0];
+
+    headerMap = {};
+    headers.forEach((h,i)=>{
+      const k = normalize(h);
+      if(!k) return;
+      if(!headerMap[k]) headerMap[k] = [];
+      headerMap[k].push(i);
+    });
+
+    rows = all.slice(1);
+    dataReady = true;
   })
   .catch(()=>{ dataReady=false; });
-
-const tooltip=document.getElementById("tooltip");
-const map=document.getElementById("map-container");
 
 function buildTooltip(row,page){
   if(!dataReady) return "<b>Chargement…</b>";
   if(!row) return "<b>Données absentes</b>";
 
-  const royaume=safe(row[0]);
-  const maison=safe(row[1]);
-  const joueur=safe(row[2]);
-  const rang=safe(row[3]);
-  const lige=safe(row[4]);
-  const chefLieu=safe(row[27]);
-  const champion=safe(row[28]);
+  const royaume   = safeText(getCell(row, "Royaume", 0, 0));
+  const maison    = safeText(getCell(row, "Maison", 0, 1));
+  const joueur    = safeText(getCell(row, "Joueur", 0, 2));
+  const rang      = safeText(getCell(row, "Rang", 0, 3));
+  const lige      = safeText(getCell(row, "Seigneur lige", 0, 4));
+  const chefLieu  = safeText(getCell(row, "Chef-lieu", 0, 27));
+  const championT = safeText(getCell(row, "Champion", 0, 28));
 
-  const g=safe(row[6]), h=safe(row[7]), i=safe(row[8]);
-  const j=safe(row[9]), k=safe(row[10]), l=safe(row[11]), m=safe(row[12]), n=safe(row[13]);
+  const prestige  = safeNum(getCell(row, "Prestige", 0, 5));
 
-  let body="", title="";
+  const techMil   = safeNum(getCell(row, "tech. militaire", 0, 6));
+  const economie  = safeNum(getCell(row, "économie", 0, 7));
+  const fortif    = safeNum(getCell(row, "fortification", 0, 8));
+
+  // Champion = occurrence 0
+  const c_tranch  = safeNum(getCell(row, "tranchantes",   0, 9));
+  const c_cond    = safeNum(getCell(row, "condondantes",  0, 10));
+  const c_hast    = safeNum(getCell(row, "hast",          0, 11));
+  const c_proj    = safeNum(getCell(row, "projection",    0, 12));
+  const c_sens    = safeNum(getCell(row, "sens du combat",0, 13));
+
+  // Equipement
+  const e_maille  = safeNum(getCell(row, "côte de maille",0, 14));
+  const e_casque  = safeNum(getCell(row, "casque",        0, 15));
+  const e_boucl   = safeNum(getCell(row, "bouclier",      0, 16));
+  const e_plast   = safeNum(getCell(row, "plastron",      0, 17));
+  const e_gants   = safeNum(getCell(row, "gants",         0, 18));
+
+  // Armes = occurrence 1
+  const a_tranch  = safeNum(getCell(row, "tranchantes",  1, 23));
+  const a_cond    = safeNum(getCell(row, "condondantes", 1, 24));
+  const a_hast    = safeNum(getCell(row, "hast",         1, 25));
+  const a_proj    = safeNum(getCell(row, "projection",   1, 26));
+
+  let title="", body="";
 
   if(page===1){
     title="Infos";
     body=`
       <div class="tip-grid">
+        <div class="k">Prestige</div><div class="v">${prestige}</div>
         <div class="k">Royaume</div><div class="v">${royaume}</div>
         <div class="k">Rang</div><div class="v">${rang}</div>
         <div class="k">Seigneur lige</div><div class="v">${lige}</div>
@@ -254,23 +278,42 @@ function buildTooltip(row,page){
         <div class="k">Joueur</div><div class="v">${joueur}</div>
       </div>`;
   } else if(page===2){
-    title="Stats de maison";
+    title="Stats de la Maison";
     body=`
       <div class="tip-grid">
-        <div class="k">Tech. militaire</div><div class="v">${g}</div>
-        <div class="k">Économie</div><div class="v">${h}</div>
-        <div class="k">Fortification</div><div class="v">${i}</div>
+        <div class="k">tech. militaire</div><div class="v">${techMil}</div>
+        <div class="k">économie</div><div class="v">${economie}</div>
+        <div class="k">fortification</div><div class="v">${fortif}</div>
+      </div>`;
+  } else if(page===3){
+    title="Compétences du champion";
+    body=`
+      <div class="tip-grid">
+        <div class="k">Champion</div><div class="v">${championT}</div>
+        <div class="k">tranchantes</div><div class="v">${c_tranch}</div>
+        <div class="k">condondantes</div><div class="v">${c_cond}</div>
+        <div class="k">hast</div><div class="v">${c_hast}</div>
+        <div class="k">projection</div><div class="v">${c_proj}</div>
+        <div class="k">sens du combat</div><div class="v">${c_sens}</div>
+      </div>`;
+  } else if(page===4){
+    title="Stats de l'Équipement";
+    body=`
+      <div class="tip-grid">
+        <div class="k">côte de maille</div><div class="v">${e_maille}</div>
+        <div class="k">casque</div><div class="v">${e_casque}</div>
+        <div class="k">bouclier</div><div class="v">${e_boucl}</div>
+        <div class="k">plastron</div><div class="v">${e_plast}</div>
+        <div class="k">gants</div><div class="v">${e_gants}</div>
       </div>`;
   } else {
-    title="Stats de champion";
+    title="Armes";
     body=`
       <div class="tip-grid">
-        <div class="k">Champion</div><div class="v">${champion}</div>
-        <div class="k">Armes tranchantes</div><div class="v">${j}</div>
-        <div class="k">Armes contondantes</div><div class="v">${k}</div>
-        <div class="k">Armes d’hast</div><div class="v">${l}</div>
-        <div class="k">Arme de projection</div><div class="v">${m}</div>
-        <div class="k">Sens du combat</div><div class="v">${n}</div>
+        <div class="k">tranchantes</div><div class="v">${a_tranch}</div>
+        <div class="k">condondantes</div><div class="v">${a_cond}</div>
+        <div class="k">hast</div><div class="v">${a_hast}</div>
+        <div class="k">projection</div><div class="v">${a_proj}</div>
       </div>`;
   }
 
@@ -280,7 +323,7 @@ function buildTooltip(row,page){
         <div class="tip-title">${maison}</div>
         <div class="tip-sub">${title}</div>
       </div>
-      <div class="tip-page">${page}/3</div>
+      <div class="tip-page">${page}/${PAGES_TOTAL}</div>
     </div>
     <div class="tip-divider"></div>
     <div class="tip-body">
@@ -288,17 +331,17 @@ function buildTooltip(row,page){
       <div class="tip-nav">
         <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
         <div class="tip-page">${title}</div>
-        <button class="tip-btn" data-action="next" ${page===3?"disabled":""}>▶</button>
+        <button class="tip-btn" data-action="next" ${page===PAGES_TOTAL?"disabled":""}>▶</button>
       </div>
     </div>
   `;
 }
 
 function computeAnchor(marker){
-  const m=marker.getBoundingClientRect();
-  const c=map.getBoundingClientRect();
-  anchor.x=(m.left-c.left)+m.width/2;
-  anchor.y=(m.top-c.top)+m.height;
+  const m = marker.getBoundingClientRect();
+  const c = map.getBoundingClientRect();
+  anchor.x = (m.left - c.left) + m.width/2;
+  anchor.y = (m.top  - c.top)  + m.height;
 }
 
 function clearFixedSize(){
@@ -306,63 +349,81 @@ function clearFixedSize(){
   tooltip.style.setProperty("--tip-w","auto");
   tooltip.style.setProperty("--tip-h","auto");
 }
-
 function applyFixedSize(){
   if(fixedTipW && fixedTipH){
     tooltip.style.setProperty("--tip-w", fixedTipW + "px");
     tooltip.style.setProperty("--tip-h", fixedTipH + "px");
   }
 }
-
-function computeFixedSizeAndLayout(){
-  const mapRect=map.getBoundingClientRect();
-  const padding=8;
-  const gap=10;
+function computeFixedSize(){
+  const mapRect = map.getBoundingClientRect();
 
   clearFixedSize();
-  tooltip.style.display="flex"; /* ✅ important */
+  tooltip.style.display="flex";
 
   let maxW=0, maxH=0;
-  for(let p=1;p<=3;p++){
-    tooltip.innerHTML=buildTooltip(currentRow,p);
-    const r=tooltip.getBoundingClientRect();
-    if(r.width>maxW) maxW=r.width;
-    if(r.height>maxH) maxH=r.height;
+  for(let p=1;p<=PAGES_TOTAL;p++){
+    tooltip.innerHTML = buildTooltip(currentRow,p);
+    const r = tooltip.getBoundingClientRect();
+    if(r.width > maxW) maxW = r.width;
+    if(r.height> maxH) maxH = r.height;
   }
 
-  const maxAllowedW = mapRect.width - padding*2;
+  const maxAllowedW = mapRect.width - PADDING*2;
   fixedTipW = Math.min(maxW, maxAllowedW);
   fixedTipH = maxH;
 
   applyFixedSize();
-
-  layoutMode = (anchor.y - fixedTipH - gap < padding) ? "below" : "above";
-
-  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
 }
 
 function placeTooltip(){
-  const mapRect=map.getBoundingClientRect();
-  const padding=8;
-  const gap=10;
-
+  const mapRect = map.getBoundingClientRect();
   applyFixedSize();
 
-  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
+  const canAbove = (anchor.y - fixedTipH - (ARROW+GAP)) >= PADDING;
+  const below = !canAbove;
+  tooltip.classList.toggle("below", below);
 
-  let top = (layoutMode==="below") ? (anchor.y + gap) : (anchor.y - fixedTipH - gap);
-  top = clamp(top, padding, mapRect.height - fixedTipH - padding);
+  tooltip.classList.remove("arrow-left","arrow-right");
 
-  // ✅ V toujours centré sur le blason
-  const left = baseX - fixedTipW/2;
-  let arrowX = anchor.x - left;
-  arrowX = clamp(arrowX, 12, fixedTipW - 12);
-  tooltip.style.setProperty("--arrow-x", arrowX + "px");
+  const minCenter = fixedTipW/2 + PADDING;
+  const maxCenter = mapRect.width - fixedTipW/2 - PADDING;
 
-  tooltip.classList.toggle("below", layoutMode==="below");
+  const sideThresholdLeft  = minCenter + (ARROW+GAP);
+  const sideThresholdRight = maxCenter - (ARROW+GAP);
+
+  let baseX;
+
+  if(anchor.x < sideThresholdLeft){
+    tooltip.classList.add("arrow-left");
+    baseX = clamp(anchor.x + fixedTipW/2 + (ARROW+GAP), minCenter, maxCenter);
+  } else if(anchor.x > sideThresholdRight){
+    tooltip.classList.add("arrow-right");
+    baseX = clamp(anchor.x - fixedTipW/2 - (ARROW+GAP), minCenter, maxCenter);
+  } else {
+    baseX = clamp(anchor.x, minCenter, maxCenter);
+  }
+
+  let top = below
+    ? (anchor.y + (ARROW+GAP))
+    : (anchor.y - fixedTipH - (ARROW+GAP));
+
+  top = clamp(top, PADDING, mapRect.height - fixedTipH - PADDING);
+
   tooltip.style.left = baseX + "px";
   tooltip.style.top  = top + "px";
-  tooltip.style.display="flex"; /* ✅ important */
+  tooltip.style.display="flex";
+
+  if(tooltip.classList.contains("arrow-left") || tooltip.classList.contains("arrow-right")){
+    let arrowY = anchor.y - top;
+    arrowY = clamp(arrowY, 14, fixedTipH - 14);
+    tooltip.style.setProperty("--arrow-y", arrowY + "px");
+  } else {
+    const visualLeft = baseX - fixedTipW/2;
+    let arrowX = anchor.x - visualLeft;
+    arrowX = clamp(arrowX, 12, fixedTipW - 12);
+    tooltip.style.setProperty("--arrow-x", arrowX + "px");
+  }
 }
 
 function renderPage(){
@@ -372,18 +433,16 @@ function renderPage(){
 }
 
 function openFor(marker){
-  currentMarker=marker;
-  currentPage=1;
-
-  const key=normalize(marker.dataset.maison);
-  currentRow=data.find(r=>normalize(r[1])===key) || null;
+  currentMarker = marker;
+  currentPage = 1;
+  currentRow = findRowByMaison(marker.dataset.maison);
 
   computeAnchor(marker);
 
   tooltip.innerHTML = buildTooltip(currentRow, 1);
-  tooltip.style.display="flex"; /* ✅ important */
+  tooltip.style.display="flex";
 
-  computeFixedSizeAndLayout();
+  computeFixedSize();
   renderPage();
 }
 
@@ -396,13 +455,12 @@ function closeTooltip(){
 }
 
 tooltip.addEventListener("click", e => e.stopPropagation());
-
 tooltip.addEventListener("click", e => {
   const btn = e.target.closest("[data-action]");
   if(!btn) return;
 
   if(btn.dataset.action==="prev" && currentPage>1) currentPage--;
-  if(btn.dataset.action==="next" && currentPage<3) currentPage++;
+  if(btn.dataset.action==="next" && currentPage<PAGES_TOTAL) currentPage++;
 
   renderPage();
 });
@@ -423,15 +481,15 @@ function repositionIfOpen(){
     placeTooltip();
   }
 }
+
 window.addEventListener("resize", ()=>{
   if(currentMarker){
     computeAnchor(currentMarker);
-    computeFixedSizeAndLayout();
+    computeFixedSize();
     renderPage();
   }
 });
 window.addEventListener("scroll", repositionIfOpen, {passive:true});
 </script>
-
 </body>
 </html>
