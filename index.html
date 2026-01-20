@@ -75,8 +75,13 @@ html,body{
   width: var(--tip-w, auto);
   height: var(--tip-h, auto);
   box-sizing:border-box;
+
+  /* ✅ ancrage des éléments : nav en bas */
+  display:flex;
+  flex-direction:column;
 }
 
+/* V */
 .tooltip::after{
   content:"";
   position:absolute;
@@ -104,11 +109,17 @@ html,body{
 }
 .tip-title{font-weight:bold;}
 .tip-sub{font-size:clamp(10px,2.6vw,12px);line-height:1.2;opacity:.95;}
+
 .tip-divider{
   height:1px;
   background:rgba(255,255,255,0.2);
   margin:6px 0;
 }
+
+.tip-body{
+  /* zone qui peut varier en hauteur */
+}
+
 .tip-grid{
   display:grid;
   grid-template-columns:auto 1fr;
@@ -118,12 +129,14 @@ html,body{
 .k{opacity:.9;}
 .v{text-align:right;font-weight:bold;color:#fff2cf;}
 
+/* nav en bas (toujours) */
 .tip-nav{
+  margin-top:auto;                 /* ✅ pousse en bas */
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-top:8px;
   gap:10px;
+  padding-top:10px;
 }
 
 .tip-btn{
@@ -229,7 +242,6 @@ function buildTooltip(row,page){
   const j=safe(row[9]), k=safe(row[10]), l=safe(row[11]), m=safe(row[12]), n=safe(row[13]);
 
   let body="", title="";
-
   if(page===1){
     title="Infos";
     body=`
@@ -270,7 +282,7 @@ function buildTooltip(row,page){
       <div class="tip-page">${page}/3</div>
     </div>
     <div class="tip-divider"></div>
-    ${body}
+    <div class="tip-body">${body}</div>
     <div class="tip-nav">
       <button class="tip-btn" data-action="prev" ${page===1?"disabled":""}>◀</button>
       <div class="tip-page">${title}</div>
@@ -303,11 +315,10 @@ function computeFixedSizeAndLayout(){
   const padding=8;
   const gap=10;
 
-  // reset size for accurate measure
   clearFixedSize();
   tooltip.style.display="block";
 
-  // measure pages for max width/height
+  // mesure maxW/maxH sur les 3 pages
   let maxW=0, maxH=0;
   for(let p=1;p<=3;p++){
     tooltip.innerHTML=buildTooltip(currentRow,p);
@@ -316,18 +327,24 @@ function computeFixedSizeAndLayout(){
     if(r.height>maxH) maxH=r.height;
   }
 
-  // limit width to map width (avoid overflow)
+  // limite largeur (anti débord)
   const maxAllowedW = mapRect.width - padding*2;
   fixedTipW = Math.min(maxW, maxAllowedW);
   fixedTipH = maxH;
 
   applyFixedSize();
 
-  // decide above/below using max height (stable for all pages)
+  // stable above/below basé sur plus grande hauteur
   layoutMode = (anchor.y - fixedTipH - gap < padding) ? "below" : "above";
 
-  // compute baseX with fixed width
-  baseX = clamp(anchor.x, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
+  // ✅ centré si possible, sinon clamp
+  const minX = fixedTipW/2 + padding;
+  const maxX = mapRect.width - fixedTipW/2 - padding;
+  if(anchor.x >= minX && anchor.x <= maxX){
+    baseX = anchor.x;           // centre parfait
+  }else{
+    baseX = clamp(anchor.x, minX, maxX);
+  }
 }
 
 function placeTooltip(){
@@ -335,19 +352,17 @@ function placeTooltip(){
   const padding=8;
   const gap=10;
 
-  // Ensure we have fixed size applied
   applyFixedSize();
 
-  // Clamp X with fixed width
-  baseX = clamp(baseX, fixedTipW/2 + padding, mapRect.width - fixedTipW/2 - padding);
+  // ✅ re-centre si possible à chaque place
+  const minX = fixedTipW/2 + padding;
+  const maxX = mapRect.width - fixedTipW/2 - padding;
+  baseX = (anchor.x >= minX && anchor.x <= maxX) ? anchor.x : clamp(anchor.x, minX, maxX);
 
-  // Use fixed height for stable placement
   let top = (layoutMode==="below") ? (anchor.y + gap) : (anchor.y - fixedTipH - gap);
-
-  // Clamp vertically to keep inside map (no overflow)
   top = clamp(top, padding, mapRect.height - fixedTipH - padding);
 
-  // Arrow alignment
+  // V aligné au blason
   const left = baseX - fixedTipW/2;
   let arrowX = anchor.x - left;
   arrowX = clamp(arrowX, 12, fixedTipW - 12);
@@ -374,7 +389,6 @@ function openFor(marker){
 
   computeAnchor(marker);
 
-  // compute fixed size + layout once per marker open
   tooltip.innerHTML = buildTooltip(currentRow, 1);
   tooltip.style.display="block";
   computeFixedSizeAndLayout();
@@ -414,13 +428,11 @@ document.addEventListener("click", ()=> closeTooltip());
 function repositionIfOpen(){
   if(currentMarker && tooltip.style.display==="block"){
     computeAnchor(currentMarker);
-    // keep same fixed size, just reposition + arrow
     placeTooltip();
   }
 }
 window.addEventListener("resize", ()=>{
   if(currentMarker){
-    // on resize, recompute fixed size with new map width
     computeAnchor(currentMarker);
     computeFixedSizeAndLayout();
     renderPage();
