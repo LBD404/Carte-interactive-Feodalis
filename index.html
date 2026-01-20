@@ -635,6 +635,51 @@ window.addEventListener("resize", ()=>{
 });
 
 window.addEventListener("scroll", repositionIfOpen, {passive:true});
+
+  // DEBUG : déplacer le hotspot et afficher ses coordonnées
+let debugDrag = false;
+
+const debugLabel = document.createElement("div");
+debugLabel.style.position = "absolute";
+debugLabel.style.background = "rgba(0,0,0,0.7)";
+debugLabel.style.color = "#fff";
+debugLabel.style.padding = "4px 6px";
+debugLabel.style.fontSize = "11px";
+debugLabel.style.borderRadius = "6px";
+debugLabel.style.pointerEvents = "none";
+debugLabel.style.zIndex = "2000";
+debugLabel.style.display = "none";
+map.appendChild(debugLabel);
+
+rewardHotspot.addEventListener("mousedown", e=>{
+  debugDrag = true;
+  debugLabel.style.display = "block";
+  e.preventDefault();
+});
+
+document.addEventListener("mouseup", ()=>{
+  debugDrag = false;
+  debugLabel.style.display = "none";
+});
+
+document.addEventListener("mousemove", e=>{
+  if(!debugDrag) return;
+
+  const rect = map.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const px = (x / rect.width * 100).toFixed(2);
+  const py = (y / rect.height * 100).toFixed(2);
+
+  rewardHotspot.style.left = px + "%";
+  rewardHotspot.style.top  = py + "%";
+
+  debugLabel.textContent = `left:${px}%  top:${py}%`;
+  debugLabel.style.left = (x + 10) + "px";
+  debugLabel.style.top  = (y + 10) + "px";
+});
+
 </script>
 </body>
 </html>
