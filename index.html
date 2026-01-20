@@ -76,8 +76,7 @@ html,body{
   height: var(--tip-h, auto);
   box-sizing:border-box;
 
-  /* ✅ nav ancrée en bas */
-  display:flex;
+  /* ✅ flex pour ancrer la nav en bas */
   flex-direction:column;
 }
 
@@ -127,6 +126,7 @@ html,body{
   flex:1;
   display:flex;
   flex-direction:column;
+  min-height:0; /* aide le flex quand la hauteur est fixe */
 }
 
 /* nav */
@@ -320,7 +320,7 @@ function computeFixedSizeAndLayout(){
   const gap=10;
 
   clearFixedSize();
-  tooltip.style.display="block";
+  tooltip.style.display="flex"; /* ✅ important */
 
   let maxW=0, maxH=0;
   for(let p=1;p<=3;p++){
@@ -362,7 +362,7 @@ function placeTooltip(){
   tooltip.classList.toggle("below", layoutMode==="below");
   tooltip.style.left = baseX + "px";
   tooltip.style.top  = top + "px";
-  tooltip.style.display="block";
+  tooltip.style.display="flex"; /* ✅ important */
 }
 
 function renderPage(){
@@ -381,7 +381,7 @@ function openFor(marker){
   computeAnchor(marker);
 
   tooltip.innerHTML = buildTooltip(currentRow, 1);
-  tooltip.style.display="block";
+  tooltip.style.display="flex"; /* ✅ important */
 
   computeFixedSizeAndLayout();
   renderPage();
@@ -418,7 +418,7 @@ document.querySelectorAll(".marker").forEach(m=>{
 document.addEventListener("click", ()=> closeTooltip());
 
 function repositionIfOpen(){
-  if(currentMarker && tooltip.style.display==="block"){
+  if(currentMarker && tooltip.style.display==="flex"){
     computeAnchor(currentMarker);
     placeTooltip();
   }
